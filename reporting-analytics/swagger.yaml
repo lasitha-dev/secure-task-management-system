@@ -1,0 +1,564 @@
+openapi: 3.0.3
+info:
+  title: Reporting & Analytics Service API
+  description: Productivity metrics and data insights for task management
+  version: 1.0.0
+  contact:
+    name: SLIIT SE4010 Team
+servers:
+  - url: http://localhost:5000
+    description: Local development server
+  - url: http://api-gateway:3000
+    description: API Gateway routing
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      operationId: getHealth
+      tags:
+        - Health
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+                  service:
+                    type: string
+                    example: reporting-analytics
+
+  /api/analytics/summary:
+    get:
+      summary: Get summary statistics
+      operationId: getSummary
+      tags:
+        - Analytics
+      parameters:
+        - name: period
+          in: query
+          description: Time period for statistics
+          required: false
+          schema:
+            type: string
+            enum: [week, month]
+            default: week
+      responses:
+        '200':
+          description: Summary statistics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      totalTasks:
+                        type: integer
+                        example: 20
+                      completedTasks:
+                        type: integer
+                        example: 12
+                      productivity:
+                        type: number
+                        format: float
+                        example: 60.5
+                      totalChange:
+                        type: number
+                        format: float
+                        example: 10.5
+                      completedChange:
+                        type: number
+                        format: float
+                        example: 5.2
+                      productivityChange:
+                        type: number
+                        format: float
+                        example: -2.1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/analytics/weekly:
+    get:
+      summary: Get weekly task completion data
+      operationId: getWeeklyData
+      tags:
+        - Analytics
+      responses:
+        '200':
+          description: Weekly data retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        day:
+                          type: string
+                          example: Mon
+                        completed:
+                          type: integer
+                          example: 3
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/analytics/status:
+    get:
+      summary: Get task status breakdown
+      operationId: getStatusBreakdown
+      tags:
+        - Analytics
+      responses:
+        '200':
+          description: Status breakdown retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      completed:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                            example: 12
+                          percentage:
+                            type: string
+                            example: "60.00"
+                      inProgress:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                            example: 5
+                          percentage:
+                            type: string
+                            example: "25.00"
+                      pending:
+                        type: object
+                        properties:
+                          count:
+                            type: integer
+                            example: 3
+                          percentage:
+                            type: string
+                            example: "15.00"
+                      total:
+                        type: integer
+                        example: 20
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/analytics/users:
+    get:
+      summary: Get per-user productivity breakdown
+      operationId: getUserBreakdown
+      tags:
+        - Analytics
+      responses:
+        '200':
+          description: User breakdown retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        userId:
+                          type: string
+                          example: USER-01
+                        userName:
+                          type: string
+                          example: Alice Johnson
+                        totalTasks:
+                          type: integer
+                          example: 8
+                        completedTasks:
+                          type: integer
+                          example: 6
+                        completionRate:
+                          type: string
+                          example: "75.00"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/analytics/my-stats:
+    get:
+      summary: Get current user's personal analytics
+      operationId: getMyStats
+      tags:
+        - Analytics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Personal analytics retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      userId:
+                        type: string
+                        example: USER-01
+                      userName:
+                        type: string
+                        example: Alice Johnson
+                      totalTasks:
+                        type: integer
+                        example: 8
+                      completedTasks:
+                        type: integer
+                        example: 6
+                      productivity:
+                        type: number
+                        format: float
+                        example: 75.0
+                      tasks:
+                        type: array
+                        items:
+                          type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/reports:
+    get:
+      summary: Get all reports
+      operationId: getAllReports
+      tags:
+        - Reports
+      responses:
+        '200':
+          description: List of reports retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/reports/my-reports:
+    get:
+      summary: Get current user's personal reports
+      operationId: getMyReports
+      tags:
+        - Reports
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User's reports retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/reports/{id}:
+    get:
+      summary: Get report by ID
+      operationId: getReportById
+      tags:
+        - Reports
+      parameters:
+        - name: id
+          in: path
+          description: Report ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Report'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Delete report by ID
+      operationId: deleteReport
+      tags:
+        - Reports
+      parameters:
+        - name: id
+          in: path
+          description: Report ID
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Report deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: Report deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/reports/generate:
+    post:
+      summary: Generate a new report
+      operationId: generateReport
+      tags:
+        - Reports
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - authorName
+                - period
+              properties:
+                title:
+                  type: string
+                  example: Weekly Productivity Report
+                authorName:
+                  type: string
+                  example: Alice Johnson
+                period:
+                  type: string
+                  enum: [week, month, custom]
+                  example: week
+      responses:
+        '201':
+          description: Report generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    $ref: '#/components/schemas/Report'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/sync/tasks:
+    post:
+      summary: Trigger manual task synchronization
+      operationId: triggerSync
+      tags:
+        - Sync
+      responses:
+        '200':
+          description: Sync triggered successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: Synced 20 tasks
+                      count:
+                        type: integer
+                        example: 20
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    Report:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: 507f1f77bcf86cd799439011
+        title:
+          type: string
+          example: Weekly Productivity Report
+        generatedAt:
+          type: string
+          format: date-time
+          example: 2026-03-05T18:00:00Z
+        authorName:
+          type: string
+          example: Alice Johnson
+        status:
+          type: string
+          enum: [ready, processing]
+          example: ready
+        period:
+          type: string
+          enum: [week, month, custom]
+          example: week
+        data:
+          type: object
+          example: {}
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+  responses:
+    BadRequest:
+      description: Bad request - validation failed
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Title is required
+
+    Unauthorized:
+      description: Unauthorized - missing or invalid token
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Authorization token is required
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Report not found
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+                example: false
+              message:
+                type: string
+                example: Internal Server Error
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: JWT Bearer token authentication

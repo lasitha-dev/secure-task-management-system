@@ -2,7 +2,7 @@
 
 An enterprise-grade, microservice-based task management platform audited, remediated, and hardened against OWASP Top 10 vulnerabilities, featuring Google OAuth 2.0 / OpenID Connect (OIDC) authentication.
 
-Originally developed for **SE4010 (Current Trends in Software Engineering), this project has been upgraded for **SE4030 (Secure Software Development)** to address critical security vulnerabilities and implement standards-compliant authentication mechanisms.
+Originally developed for **SE4010 (Current Trends in Software Engineering)**, this project has been upgraded for **SE4030 (Secure Software Development)** to address critical security vulnerabilities and implement standards-compliant authentication mechanisms.
 
 ---
 
@@ -13,7 +13,6 @@ Originally developed for **SE4010 (Current Trends in Software Engineering), this
 * **Module:** SE4030 – Secure Software Development
 * **Assignment:** Group Assignment – Vulnerability Identification, Remediation & OAuth Implementation
 * **Submission Deadline:** October 2, 2026
-* **Original Group ID (SE4010):** Group 104
 
 ### Group Members & Contributions
 
@@ -22,7 +21,7 @@ Originally developed for **SE4010 (Current Trends in Software Engineering), this
 | **1** | **A.L.M. Athulathmudali** | `IT21129544` | **API Gateway & Routing Security:** Helmet headers, CORS policy enforcement, rate limiting, and gateway DAST audits. |
 | **2** | **W.M.P.J. Wijenayake** | `IT22194558` | **Task Management Service:** Broken Object-Level Authorization (IDOR) fixes, NoSQL injection sanitization, and access-control validation. |
 | **3** | **S.S. Kumarasinghe** | `IT22221414` | **User Management Service:** Google OAuth 2.0 / OpenID Connect implementation, password sanitization, and brute-force mitigation. |
-| **4** | **G.A. Sandaru** | `IT22258908` | **Notifications & Reporting Services:** Outdated dependency patching, SAST/DAST automation (OWASP ZAP, Snyk/Semgrep) |
+| **4** | **G.A. Sandaru** | `IT22258908` | **Notifications & Reporting Services:** Outdated dependency patching, SAST/DAST automation (OWASP ZAP, Snyk/Semgrep), and video demonstration. |
 
 ---
 
@@ -30,7 +29,7 @@ Originally developed for **SE4010 (Current Trends in Software Engineering), this
 
 * **Original Project Repository:** [https://github.com/lasitha-dev/Task-Management-System.git](https://github.com/lasitha-dev/Task-Management-System.git)
   *(Original codebase baseline committed prior to the start of the semester)*
-* **Modified Hardened Repository:** `https://github.com/<YOUR-ORGANIZATION-OR-USERNAME>/secure-task-management-system`
+* **Modified Hardened Repository:** `https://github.com/lasitha-dev/secure-task-management-system.git`
   *(Contains atomic commit history for every vulnerability fix and feature addition)*
 * **YouTube Demonstration Video (Max 20 Minutes):** `https://youtu.be/<YOUR_VIDEO_ID>`
   *(Presents vulnerability identification, proof-of-concept exploits, code remediation walkthrough, and OAuth 2.0 authentication)*

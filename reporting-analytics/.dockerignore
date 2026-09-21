@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+README.md
+.env
+.env.local
+.vscode
+tests
+jest.setup.js
+package-lock.json
+.dockerignore
+Dockerfile
+.github

@@ -1,0 +1,323 @@
+﻿
+> reporting-analytics@1.0.0 test
+> jest --coverage
+
+npm : FAIL tests/integration/an
+alytics.test.js
+At line:1 char:1
++ npm test > output.log 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          :  
+   NotSpecified: (FAIL tests/  
+  integration/analytics.test   
+ .js:String) [], RemoteExce    
+ption
+    + FullyQualifiedErrorId :  
+   NativeCommandError
+ 
+  ΓùÅ Test suite failed to run
+
+    Cannot find module 
+'supertest' from 'tests/integra
+tion/analytics.test.js'
+
+    
+[0m[31m[1m>[22m[39m[90m 
+1 |[39m [36mconst[39m 
+request [33m=[39m require([3
+2m'supertest'[39m)[33m;[39m
+     [90m   |[39m            
+     [31m[1m^[22m[39m
+     [90m 2 |[39m 
+[36mconst[39m app 
+[33m=[39m require([32m'../..
+/src/app'[39m)[33m;[39m
+     [90m 3 |[39m 
+[36mconst[39m mongoose 
+[33m=[39m require([32m'mongo
+ose'[39m)[33m;[39m
+     [90m 4 |[39m 
+[36mconst[39m 
+[33mTasksMirror[39m 
+[33m=[39m require([32m'../..
+/src/models/TasksMirror'[39m)
+[33m;[39m[0m
+
+      at Resolver._throwModNotF
+oundError (node_modules/jest-re
+solve/build/resolver.js:427:11)
+      at Object.require (tests/
+integration/analytics.test.js:1
+:17)
+
+FAIL 
+tests/unit/syncService.test.js
+  ΓùÅ Test suite failed to run
+
+    Cannot find module 'axios' 
+from 'tests/unit/syncService.te
+st.js'
+
+    [0m [90m 4 |[39m
+     [90m 5 |[39m jest[33m.
+[39mmock([32m'../../src/models
+/TasksMirror'[39m)[33m;[39m
+    [31m[1m>[22m[39m[90m 
+6 |[39m jest[33m.[39mmock([
+32m'axios'[39m)[33m;[39m
+     [90m   |[39m      
+[31m[1m^[22m[39m
+     [90m 7 |[39m
+     [90m 8 |[39m 
+describe([32m'Sync 
+Service'[39m[33m,[39m () 
+[33m=>[39m {
+     [90m 9 |[39m     
+beforeEach(() [33m=>[39m 
+{[0m
+
+      at Resolver._throwModNotF
+oundError (node_modules/jest-re
+solve/build/resolver.js:427:11)
+      at Object.mock (tests/uni
+t/syncService.test.js:6:6)
+
+FAIL 
+tests/integration/sync.test.js
+  ΓùÅ Test suite failed to run
+
+    Cannot find module 
+'supertest' from 'tests/integra
+tion/sync.test.js'
+
+    
+[0m[31m[1m>[22m[39m[90m 
+1 |[39m [36mconst[39m 
+request [33m=[39m require([3
+2m'supertest'[39m)[33m;[39m
+     [90m   |[39m            
+     [31m[1m^[22m[39m
+     [90m 2 |[39m jest[33m.
+[39msetTimeout([35m15000[39m)
+[33m;[39m
+     [90m 3 |[39m 
+[36mconst[39m app 
+[33m=[39m require([32m'../..
+/src/app'[39m)[33m;[39m
+     [90m 4 |[39m 
+[36mconst[39m mongoose 
+[33m=[39m require([32m'mongo
+ose'[39m)[33m;[39m[0m
+
+      at Resolver._throwModNotF
+oundError (node_modules/jest-re
+solve/build/resolver.js:427:11)
+      at Object.require (tests/
+integration/sync.test.js:1:17)
+
+FAIL tests/integration/reports.
+test.js
+  ΓùÅ Test suite failed to run
+
+    Cannot find module 
+'supertest' from 'tests/integra
+tion/reports.test.js'
+
+    
+[0m[31m[1m>[22m[39m[90m 
+1 |[39m [36mconst[39m 
+request [33m=[39m require([3
+2m'supertest'[39m)[33m;[39m
+     [90m   |[39m            
+     [31m[1m^[22m[39m
+     [90m 2 |[39m jest[33m.
+[39msetTimeout([35m15000[39m)
+[33m;[39m
+     [90m 3 |[39m 
+[36mconst[39m app 
+[33m=[39m require([32m'../..
+/src/app'[39m)[33m;[39m
+     [90m 4 |[39m 
+[36mconst[39m mongoose 
+[33m=[39m require([32m'mongo
+ose'[39m)[33m;[39m[0m
+
+      at Resolver._throwModNotF
+oundError (node_modules/jest-re
+solve/build/resolver.js:427:11)
+      at Object.require (tests/
+integration/reports.test.js:1:1
+7)
+
+PASS tests/unit/analyticsServic
+e.test.js
+PASS tests/unit/reportsService.
+test.js
+  ΓùÅ Console
+
+    console.log
+      ≡ƒôè Report "Test 
+Report" created with ID: 123
+
+      at Object.log [as 
+generateReport] (src/services/r
+eportsService.js:25:17)
+
+    console.log
+      Γ£à Report "Test Report" 
+is ready
+
+      at Object.log [as 
+generateReport] (src/services/r
+eportsService.js:44:17)
+
+    console.log
+      ≡ƒôè Report "Test" 
+created with ID: 123
+
+      at Object.log [as 
+generateReport] (src/services/r
+eportsService.js:25:17)
+
+    console.log
+      Γ£à Report "Test" is 
+ready
+
+      at Object.log [as 
+generateReport] (src/services/r
+eportsService.js:44:17)
+
+    console.error
+      Error getting report by 
+ID: Error: Report not found
+          at 
+Object.getReportById (C:\Users\
+lasit\OneDrive\Documents\IDEs\V
+S Code\Task-Management-System\r
+eporting-analytics\src\services
+\reportsService.js:75:19)
+          at 
+Object.<anonymous> (C:\Users\la
+sit\OneDrive\Documents\IDEs\VS 
+Code\Task-Management-System\rep
+orting-analytics\tests\unit\rep
+ortsService.test.js:94:13)
+
+    [0m [90m 77 |[39m       
+  [36mreturn[39m 
+report[33m;[39m
+     [90m 78 |[39m     } 
+[36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m 
+79 |[39m         console[33m.
+[39merror([32m'Error getting 
+report by ID:'[39m[33m,[39m 
+error)[33m;[39m
+     [90m    |[39m           
+      [31m[1m^[22m[39m
+     [90m 80 |[39m         
+[36mthrow[39m 
+error[33m;[39m
+     [90m 81 |[39m     }
+     [90m 82 |[39m 
+}[33m;[39m[0m
+
+      at Object.error [as 
+getReportById] (src/services/re
+portsService.js:79:17)
+      at Object.<anonymous> (te
+sts/unit/reportsService.test.js
+:94:13)
+
+    console.log
+      ≡ƒùæ∩╕Å Report "Report 
+1" deleted
+
+      at Object.log [as 
+deleteReport] (src/services/rep
+ortsService.js:95:17)
+
+    console.error
+      Error deleting report: 
+Error: Report not found
+          at 
+Object.deleteReport (C:\Users\l
+asit\OneDrive\Documents\IDEs\VS
+ Code\Task-Management-System\re
+porting-analytics\src\services\
+reportsService.js:93:19)
+          at 
+Object.<anonymous> (C:\Users\la
+sit\OneDrive\Documents\IDEs\VS 
+Code\Task-Management-System\rep
+orting-analytics\tests\unit\rep
+ortsService.test.js:112:13)
+
+    [0m [90m  96 |[39m      
+   [36mreturn[39m { 
+success[33m:[39m 
+[36mtrue[39m[33m,[39m 
+message[33m:[39m 
+[32m'Report deleted 
+successfully'[39m }[33m;[39m
+     [90m  97 |[39m     } 
+[36mcatch[39m (error) {
+    [31m[1m>[22m[39m[90m  
+98 |[39m         console[33m.
+[39merror([32m'Error 
+deleting 
+report:'[39m[33m,[39m 
+error)[33m;[39m
+     [90m     |[39m          
+       [31m[1m^[22m[39m
+     [90m  99 |[39m         
+[36mthrow[39m 
+error[33m;[39m
+     [90m 100 |[39m     }
+     [90m 101 |[39m 
+}[33m;[39m[0m
+
+      at Object.error [as 
+deleteReport] (src/services/rep
+ortsService.js:98:17)
+      at Object.<anonymous> (te
+sts/unit/reportsService.test.js
+:112:13)
+
+-------------------------|---------|----------|---------|---------|---------------------------------------
+File                     | % Stmts | % Branch | % Funcs | % Lines | Uncovered Line #s                     
+-------------------------|---------|----------|---------|---------|---------------------------------------
+All files                |    35.6 |    21.27 |   34.21 |   35.04 |                                       
+ controllers             |       0 |        0 |       0 |       0 |                                       
+  analyticsController.js |       0 |        0 |       0 |       0 | 1-82                                  
+  reportsController.js   |       0 |        0 |       0 |       0 | 1-68                                  
+  syncController.js      |       0 |      100 |       0 |       0 | 1-15                                  
+ middleware              |       0 |        0 |       0 |       0 |                                       
+  authMiddleware.js      |       0 |        0 |       0 |       0 | 1-55                                  
+  errorHandler.js        |       0 |        0 |       0 |       0 | 5-17                                  
+  rateLimiter.js         |       0 |      100 |       0 |       0 | 1-18                                  
+  validateRequest.js     |       0 |        0 |       0 |       0 | 1-35                                  
+ models                  |   66.66 |      100 |     100 |   66.66 |                                       
+  AnalyticsCache.js      |       0 |      100 |     100 |       0 | 1-37                                  
+  Report.js              |     100 |      100 |     100 |     100 |                                       
+  TasksMirror.js         |     100 |      100 |     100 |     100 |                                       
+ routes                  |       0 |      100 |     100 |       0 |                                       
+  analyticsRoutes.js     |       0 |      100 |     100 |       0 | 1-37                                  
+  reportRoutes.js        |       0 |      100 |     100 |       0 | 1-39                                  
+  syncRoutes.js          |       0 |      100 |     100 |       0 | 1-11                                  
+ services                |   71.11 |    37.77 |      75 |   70.99 |                                       
+  analyticsService.js    |   85.07 |       55 |    87.5 |   84.61 | 73-74,108-109,118-119,150-151,193-194 
+  reportsService.js      |   81.25 |    85.71 |   83.33 |   80.85 | 47-48,61-62,109-114                   
+  syncService.js         |       0 |        0 |       0 |       0 | 1-59                                  
+ utils                   |   31.57 |    18.75 |   16.66 |   30.35 |                                       
+  constants.js           |     100 |      100 |     100 |     100 |                                       
+  helpers.js             |      22 |    18.75 |   16.66 |    20.4 | 9-27,36-57,76-78,87-88,97             
+-------------------------|---------|----------|---------|---------|---------------------------------------
+
+Test Suites: 4 failed, 2 
+passed, 6 total
+Tests:       14 passed, 14 
+total
+Snapshots:   0 total
+Time:        2.972 s
+Ran all test suites.

@@ -1,0 +1,208 @@
+services:
+  # ============================================
+  # API Gateway Service
+  # ============================================
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      - PORT=8000
+      - NODE_ENV=${NODE_ENV:-production}
+      - USER_SERVICE_URL=http://user-management:5001
+      - TASK_SERVICE_URL=http://task-management:5002
+      - NOTIFICATION_SERVICE_URL=http://notifications-management:5003
+      - REPORTING_SERVICE_URL=http://reporting-analytics:5000
+    depends_on:
+      - user-management
+      - task-management
+      - notifications-management
+    networks:
+      - mern-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # User Management Service (Using MongoDB Atlas)
+  # ============================================
+  user-management:
+    build:
+      context: ./user-management
+      dockerfile: Dockerfile
+    container_name: user-management
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5001:5001"
+    environment:
+      - PORT=5001
+      - MONGO_URI=mongodb+srv://sathnarakumarasinghe_db_user:Wm32cnshkjWf0gIG@usermanagement.82h7tlu.mongodb.net/user-management-db?appName=UserManagement
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRE=${JWT_EXPIRE:-30d}
+      - NODE_ENV=${NODE_ENV:-production}
+      - GOOGLE_CLIENT_ID=995578316094-qdi6aqve8ksss8coga91353b49ea7veh.apps.googleusercontent.com
+      - GOOGLE_CLIENT_SECRET=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
+      - GOOGLE_CALLBACK_URL=http://localhost:5001/api/users/google/callback
+    networks:
+      - mern-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5001/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # Task Management Service (Using MongoDB Atlas)
+  # ============================================
+  task-management:
+    build:
+      context: ./task-management
+      dockerfile: Dockerfile
+    container_name: task-management
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5002:5002"
+    environment:
+      - PORT=5002
+      - MONGO_URI=mongodb+srv://User2:Pramod123@cluster0.8e4nq9e.mongodb.net/task-management?appName=Cluster0
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRE=${JWT_EXPIRE:-30d}
+      - NODE_ENV=${NODE_ENV:-production}
+      - USER_SERVICE_URL=http://user-management:5001
+      - API_GATEWAY_URL=http://api-gateway:8000
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
+    networks:
+      - mern-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5002/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # Notifications Management Service
+  # ============================================
+  notifications-management:
+    build:
+      context: ./notifications-management
+      dockerfile: Dockerfile
+    container_name: notifications-management
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5003:5003"
+    environment:
+      - PORT=5003
+      - MONGO_URI=mongodb+srv://sathnarakumarasinghe_db_user:Wm32cnshkjWf0gIG@usermanagement.82h7tlu.mongodb.net/notifications-management-db?appName=UserManagement
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRE=${JWT_EXPIRE:-30d}
+      - NODE_ENV=${NODE_ENV:-production}
+      - INTERNAL_SERVICE_TOKEN=${INTERNAL_SERVICE_TOKEN}
+      - ENABLE_MOCK_NOTIFICATIONS=false
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_FROM=${SMTP_FROM:-TaskMaster <noreply@taskmaster.app>}
+    networks:
+      - mern-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5003/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # Reporting & Analytics Service
+  # ============================================
+  reporting-analytics:
+    build:
+      context: ./reporting-analytics
+      dockerfile: Dockerfile
+    container_name: reporting-analytics
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5004:5000"
+    environment:
+      - PORT=5000
+      - MONGO_URI=mongodb+srv://User2:Pramod123@cluster0.8e4nq9e.mongodb.net/reporting-analytics?appName=Cluster0
+      - JWT_SECRET=${JWT_SECRET}
+      - TASK_SERVICE_URL=http://api-gateway:8000/api/tasks
+      - USER_SERVICE_URL=http://api-gateway:8000/api/users
+      - API_GATEWAY_URL=http://api-gateway:8000
+    depends_on:
+      - api-gateway
+      - task-management
+    networks:
+      - mern-network
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ============================================
+  # Task Management Frontend
+  # ============================================
+  task-frontend:
+    build:
+      context: .
+      dockerfile: ./task-management/frontend/Dockerfile
+      args:
+        - VITE_API_URL=http://127.0.0.1:8000
+    container_name: task-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - mern-network
+
+  # ============================================
+  # Notifications Frontend
+  # ============================================
+  notifications-frontend:
+    build:
+      context: .
+      dockerfile: ./notifications-management/frontend/Dockerfile
+      args:
+        - VITE_API_URL=http://127.0.0.1:8000/api/notifications
+    container_name: notifications-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3002:80"
+    depends_on:
+      - api-gateway
+      - notifications-management
+    networks:
+      - mern-network
+
+  # ============================================
+  # User Management Frontend
+  # ============================================
+  user-frontend:
+    build:
+      context: .
+      dockerfile: ./user-management/frontend/Dockerfile
+      args:
+        - VITE_API_URL=http://127.0.0.1:8000/api/users
+        - VITE_GOOGLE_CLIENT_ID=995578316094-qdi6aqve8ksss8coga91353b49ea7veh.apps.googleusercontent.com
+    container_name: user-frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:80"
+    depends_on:
+      - api-gateway
+    networks:
+      - mern-network
+
+# ============================================
+# Networks
+# ============================================
+networks:
+  mern-network:
+    driver: bridge

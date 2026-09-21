@@ -1,0 +1,44 @@
+{
+    "name": "reporting-analytics",
+    "version": "1.0.0",
+    "description": "Reporting & Analytics Microservice - Productivity metrics and data insights",
+    "main": "src/app.js",
+    "scripts": {
+        "start": "node src/app.js",
+        "dev": "nodemon src/app.js",
+        "test": "jest --coverage",
+        "test:watch": "jest --watch",
+        "test:unit": "jest tests/unit --coverage"
+    },
+    "dependencies": {
+        "axios": "^1.6.0",
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.5",
+        "express": "^4.18.2",
+        "express-rate-limit": "^7.0.0",
+        "express-validator": "^7.0.0",
+        "joi": "^17.11.0",
+        "jsonwebtoken": "^9.0.2",
+        "mongoose": "^8.0.0",
+        "node-cron": "^3.0.2"
+    },
+    "devDependencies": {
+        "jest": "^29.7.0",
+        "nodemon": "^3.0.2",
+        "supertest": "^6.3.3"
+    },
+    "jest": {
+        "testEnvironment": "node",
+        "testPathIgnorePatterns": ["/node_modules/"],
+        "coveragePathIgnorePatterns": ["/node_modules/"],
+        "collectCoverageFrom": [
+            "src/**/*.js",
+            "!src/app.js",
+            "!src/config/**"
+        ],
+        "testMatch": [
+            "**/tests/**/*.test.js"
+        ],
+        "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"]
+    }
+}

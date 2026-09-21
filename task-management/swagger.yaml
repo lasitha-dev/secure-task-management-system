@@ -1,0 +1,36 @@
+openapi: 3.0.3
+info:
+  title: Task Management Service API
+  description: Core Kanban task lifecycle - CRUD, status tracking, drag-and-drop
+  version: 1.0.0
+servers:
+  - url: http://localhost:5002
+    description: Local development server
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+                  service:
+                    type: string
+                    example: task-management
+  /api/tasks:
+    get:
+      summary: Get all tasks
+      tags:
+        - Tasks
+      responses:
+        '200':
+          description: List of tasks retrieved successfully
+        '500':
+          description: Internal Server Error

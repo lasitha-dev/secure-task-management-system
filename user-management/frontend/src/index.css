@@ -1,0 +1,40 @@
+@import "@taskmaster/shared-ui/theme.css";
+
+@import "tailwindcss";
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+  }
+
+  .material-symbols-outlined {
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  /* Force dark background on browser autofill */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus,
+  input:-webkit-autofill:active {
+    -webkit-box-shadow: 0 0 0 9999px #111621 inset !important;
+    -webkit-text-fill-color: #ffffff !important;
+    caret-color: #ffffff !important;
+    transition: background-color 5000s ease-in-out 0s !important;
+    background-color: #111621 !important;
+    border-color: inherit !important;
+  }
+
+  /* Firefox autofill */
+  input:autofill {
+    background-color: #111621 !important;
+    color: #ffffff !important;
+  }
+}

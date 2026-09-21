@@ -1,0 +1,30 @@
+{
+  "name": "task-management-system",
+  "version": "1.0.0",
+  "description": "Secure Microservice-Based Task Management System",
+  "scripts": {
+    "start": "./dev-start.sh",
+    "stop": "./dev-stop.sh",
+    "docker:start": "docker-compose up --build -d",
+    "docker:stop": "docker-compose down",
+    "docker:logs": "docker-compose logs -f",
+    "install:all": "npm run install:api && npm run install:user && npm run install:task && npm run install:notifications && npm run install:reporting && npm run install:user-frontend && npm run install:task-frontend && npm run install:notifications-frontend && npm run install:reporting-frontend",
+    "install:api": "cd api-gateway && npm install",
+    "install:user": "cd user-management && npm install",
+    "install:task": "cd task-management && npm install",
+    "install:notifications": "cd notifications-management && npm install",
+    "install:reporting": "cd reporting-analytics && npm install",
+    "install:user-frontend": "cd user-management/frontend && npm install",
+    "install:task-frontend": "cd task-management/frontend && npm install",
+    "install:notifications-frontend": "cd notifications-management/frontend && npm install",
+    "install:reporting-frontend": "cd reporting-analytics/client && npm install"
+  },
+  "keywords": [
+    "microservices",
+    "task-management",
+    "mern-stack",
+    "docker"
+  ],
+  "author": "SLIIT SE4010",
+  "license": "MIT"
+}

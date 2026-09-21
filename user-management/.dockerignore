@@ -1,0 +1,16 @@
+node_modules
+npm-debug.log
+frontend
+tests
+coverage
+logs
+*.log
+.env
+.env.*
+.git
+.gitignore
+.dockerignore
+swagger.yaml
+jest.config.js
+nodemon.json
+*.md

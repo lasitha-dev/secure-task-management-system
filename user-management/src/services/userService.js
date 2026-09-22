@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const { OAuth2Client } = require('google-auth-library');
@@ -195,7 +196,15 @@ const googleAuth = async (idToken) => {
     audience: process.env.GOOGLE_CLIENT_ID,
   });
 
-  const { sub: googleId, email, name } = ticket.getPayload();
+  const payload = ticket.getPayload();
+  const { sub: googleId, email, name, email_verified } = payload || {};
+
+  // Reject authentication if email is missing or email_verified !== true
+  if (!email || email_verified !== true) {
+    const error = new Error('Google email is unverified or missing');
+    error.statusCode = 401;
+    throw error;
+  }
 
   // Check if user exists by googleId
   let user = await User.findOne({ googleId });
@@ -213,15 +222,67 @@ const googleAuth = async (idToken) => {
     return { _id: user._id, name: user.name, email: user.email, role: user.role, token };
   }
 
-  // Create new user
+  // Create new user — explicitly enforce role: 'User'
   user = await User.create({
     name,
     email,
     googleId,
+    role: 'User',
   });
 
   const token = generateToken(user._id, user.role, user.name, user.email);
   return { _id: user._id, name: user.name, email: user.email, role: user.role, token };
+};
+
+// ---- Phase 4: OAuth 2.0 Short-Lived Single-Use Exchange Store ----------------
+// Note: An in-memory Map is used here for single-instance architecture.
+// In a production multi-instance deployment, a shared TTL store such as Redis should be used.
+const oauthExchangeTickets = new Map();
+const OAUTH_TICKET_TTL_MS = 60 * 1000; // 60-second window
+
+const createOAuthExchangeTicket = ({ user, token }) => {
+  const code = crypto.randomBytes(32).toString('hex');
+  oauthExchangeTickets.set(code, {
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+    },
+    token,
+    expiresAt: Date.now() + OAUTH_TICKET_TTL_MS,
+  });
+  return code;
+};
+
+const consumeOAuthExchangeTicket = async (code) => {
+  if (!code || typeof code !== 'string') {
+    const error = new Error('Exchange code is required');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const ticket = oauthExchangeTickets.get(code);
+  if (!ticket) {
+    const error = new Error('Invalid or expired exchange code');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Delete immediately upon consumption (single-use guarantee)
+  oauthExchangeTickets.delete(code);
+
+  if (Date.now() > ticket.expiresAt) {
+    const error = new Error('Exchange code has expired');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    user: ticket.user,
+    token: ticket.token,
+  };
 };
 
 module.exports = {
@@ -232,4 +293,6 @@ module.exports = {
   deleteUser,
   getAllUsers,
   googleAuth,
+  createOAuthExchangeTicket,
+  consumeOAuthExchangeTicket,
 };

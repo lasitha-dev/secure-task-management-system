@@ -1,5 +1,8 @@
 const { validationResult } = require('express-validator');
+const passport = require('passport');
+const crypto = require('crypto');
 const userService = require('../services/userService');
+const generateToken = require('../utils/generateToken');
 
 const registerUser = async (req, res, next) => {
   try {
@@ -108,6 +111,62 @@ const searchUsers = async (req, res, next) => {
   }
 };
 
+// Google OAuth Authorization Code Flow
+const initiateGoogleAuth = (req, res, next) => {
+  const state = crypto.randomBytes(32).toString('hex');
+  res.cookie('oauth_state', state, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    maxAge: 5 * 60 * 1000,
+  });
+
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    state,
+  })(req, res, next);
+};
+
+const handleGoogleCallback = (req, res, next) => {
+  const queryState = req.query.state;
+  const cookieState = req.cookies ? req.cookies.oauth_state : null;
+
+  if (!queryState || !cookieState || queryState !== cookieState) {
+    res.clearCookie('oauth_state');
+    return res.status(400).json({ success: false, message: 'Invalid or missing OAuth state' });
+  }
+
+  res.clearCookie('oauth_state');
+
+  passport.authenticate('google', { session: false }, (err, user) => {
+    if (err || !user) {
+      return res.status(401).json({
+        success: false,
+        message: err ? err.message : 'Google authentication failed',
+      });
+    }
+
+    const token = generateToken(user._id, user.role, user.name, user.email);
+    const code = userService.createOAuthExchangeTicket({ user, token });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    return res.redirect(`${frontendUrl}/oauth-callback?code=${code}`);
+  })(req, res, next);
+};
+
+const exchangeOAuthCode = async (req, res, next) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, message: 'Exchange code is required' });
+    }
+    const result = await userService.consumeOAuthExchangeTicket(code);
+    res.status(200).json({ success: true, data: result });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -117,4 +176,7 @@ module.exports = {
   getAllUsers,
   googleAuth,
   searchUsers,
+  initiateGoogleAuth,
+  handleGoogleCallback,
+  exchangeOAuthCode,
 };

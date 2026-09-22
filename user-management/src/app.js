@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 const passport = require('passport');
+const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const logger = require('./config/logger');
 const configurePassport = require('./config/passport');
@@ -20,6 +21,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
 
 // HTTP request logging via morgan, piped to winston
 if (process.env.NODE_ENV !== 'test') {

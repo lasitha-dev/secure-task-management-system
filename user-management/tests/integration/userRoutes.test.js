@@ -1275,9 +1275,71 @@ describe('User API Routes', () => {
     // -------------------------------------------------------------------------
     // 6. OAuth-created role guard: boundary test
     // -------------------------------------------------------------------------
-    it.todo(
-      '[FUTURE GREEN] Google OAuth-created user must always have role "User", never "Admin"'
-    );
+    it('OAuth strategy verify callback must create new users strictly with role "User" (never Admin)', async () => {
+      const passport = require('passport');
+      const strategy = passport._strategies && passport._strategies.google;
+      expect(strategy).toBeDefined();
+
+      const newGoogleId = 'google-sub-role-check-12345';
+      const newEmail = 'new-oauth-user@example.com';
+      const mockProfile = {
+        id: newGoogleId,
+        displayName: 'New Google User',
+        emails: [{ value: newEmail, verified: true }],
+        role: 'Admin', // Attacker payload / untrusted field
+      };
+
+      let verifyError = null;
+      let createdUser = null;
+
+      await new Promise((resolve) => {
+        strategy._verify('mock-access-token', 'mock-refresh-token', mockProfile, (err, user) => {
+          verifyError = err;
+          createdUser = user;
+          resolve();
+        });
+      });
+
+      expect(verifyError).toBeNull();
+      expect(createdUser).toBeDefined();
+      expect(createdUser.role).toBe('User');
+      expect(createdUser.role).not.toBe('Admin');
+
+      const dbUser = await User.findOne({ googleId: newGoogleId });
+      expect(dbUser).toBeDefined();
+      expect(dbUser.role).toBe('User');
+      expect(dbUser.role).not.toBe('Admin');
+    });
+
+    it('OAuth strategy verify callback must preserve an existing Admin role when linking verified Google account', async () => {
+      const ADMIN_EMAIL = 'existing-admin-link@example.com';
+      await User.create({
+        name: 'Existing Admin',
+        email: ADMIN_EMAIL,
+        password: 'Password123!',
+        role: 'Admin',
+      });
+
+      const passport = require('passport');
+      const strategy = passport._strategies && passport._strategies.google;
+
+      const mockProfile = {
+        id: 'google-sub-admin-link-999',
+        displayName: 'Existing Admin',
+        emails: [{ value: ADMIN_EMAIL, verified: true }],
+      };
+
+      await new Promise((resolve, reject) => {
+        strategy._verify('mock-token', 'mock-refresh', mockProfile, (err, user) => {
+          if (err) return reject(err);
+          resolve(user);
+        });
+      });
+
+      const dbAdmin = await User.findOne({ email: ADMIN_EMAIL }).select('+googleId');
+      expect(dbAdmin.role).toBe('Admin');
+      expect(dbAdmin.googleId).toBe('google-sub-admin-link-999');
+    });
 
     // -------------------------------------------------------------------------
     // 7. Verified-email linking guard: strategy boundary test
@@ -1305,7 +1367,6 @@ describe('User API Routes', () => {
       };
 
       // 4. Invoke strategy verify callback
-      // FAILS currently: Current passport.js blindly links user.googleId without checking verification!
       let verifyError = null;
       let verifiedUser = null;
 
@@ -1327,7 +1388,7 @@ describe('User API Routes', () => {
     });
 
     // -------------------------------------------------------------------------
-    // 8. Regression: Existing POST /api/users/google GIS endpoint remains intact
+    // 8. Regression & Hardening: Existing POST /api/users/google GIS endpoint
     // -------------------------------------------------------------------------
     it('POST /api/users/google continues to handle client-side GIS tokens (compatibility)', async () => {
       const res = await request(app)
@@ -1338,6 +1399,182 @@ describe('User API Routes', () => {
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
       expect(res.body.message).toBe('Google ID token is required');
+    });
+
+    it('POST /api/users/google rejects unverified Google ID token with 401 and does not link or create user', async () => {
+      const VICTIM_EMAIL = 'local-victim-gis@example.com';
+      await User.create({
+        name: 'Local Victim',
+        email: VICTIM_EMAIL,
+        password: 'Password123!',
+        role: 'User',
+      });
+
+      const { OAuth2Client } = require('google-auth-library');
+      const spy = jest.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockResolvedValueOnce({
+        getPayload: () => ({
+          sub: 'attacker-sub-gis',
+          email: VICTIM_EMAIL,
+          name: 'Attacker GIS Impersonator',
+          email_verified: false,
+        }),
+      });
+
+      try {
+        const res = await request(app)
+          .post('/api/users/google')
+          .send({ idToken: 'valid-id-token-unverified-email' });
+
+        expect(res.status).toBe(401);
+        expect(res.body.success).toBe(false);
+        expect(res.body.message).toMatch(/unverified|missing/i);
+
+        // Account must NOT have been linked
+        const dbVictim = await User.findOne({ email: VICTIM_EMAIL }).select('+googleId');
+        expect(dbVictim.googleId).toBeFalsy();
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it('POST /api/users/google creates new verified Google user with explicit role "User"', async () => {
+      const { OAuth2Client } = require('google-auth-library');
+      const spy = jest.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockResolvedValueOnce({
+        getPayload: () => ({
+          sub: 'new-gis-sub-verified',
+          email: 'new-gis-user@example.com',
+          name: 'New GIS User',
+          email_verified: true,
+        }),
+      });
+
+      try {
+        const res = await request(app)
+          .post('/api/users/google')
+          .send({ idToken: 'valid-id-token-verified-email' });
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data.role).toBe('User');
+        expect(res.body.data).toHaveProperty('token');
+
+        const dbUser = await User.findOne({ email: 'new-gis-user@example.com' });
+        expect(dbUser).toBeDefined();
+        expect(dbUser.role).toBe('User');
+        expect(dbUser.role).not.toBe('Admin');
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // 9. One-time exchange code ticket consumption and handoff tests
+    // -------------------------------------------------------------------------
+    it('successful callback redirects to frontend with opaque code only (no JWT in URL)', async () => {
+      const user = await User.create({
+        name: 'Callback User',
+        email: 'callback-user@example.com',
+        password: 'Password123!',
+        role: 'User',
+      });
+
+      const passport = require('passport');
+      const origAuthenticate = passport.authenticate;
+
+      try {
+        passport.authenticate = jest.fn((strat, opts, callback) => {
+          return (req, res, next) => {
+            if (typeof callback === 'function') {
+              callback(null, user);
+            }
+          };
+        });
+
+        const STATE = 'valid-matched-test-state-nonce';
+        const res = await request(app)
+          .get('/api/users/auth/google/callback')
+          .query({ code: 'google-auth-code', state: STATE })
+          .set('Cookie', [`oauth_state=${STATE}`]);
+
+        expect(res.status).toBe(302);
+        expect(res.headers.location).toBeDefined();
+
+        const redirectUrl = new URL(res.headers.location);
+        expect(redirectUrl.pathname).toBe('/oauth-callback');
+        expect(redirectUrl.searchParams.get('code')).toBeTruthy();
+
+        // Security check: Must NEVER contain token, jwt, or access_token in URL
+        expect(redirectUrl.searchParams.get('token')).toBeNull();
+        expect(redirectUrl.searchParams.get('jwt')).toBeNull();
+        expect(redirectUrl.searchParams.get('access_token')).toBeNull();
+        expect(res.headers.location).not.toMatch(/token=|jwt=|access_token=/i);
+      } finally {
+        passport.authenticate = origAuthenticate;
+      }
+    });
+
+    it('POST /api/users/auth/google/exchange returns user and token for valid exchange code, and consumes it single-use', async () => {
+      const userService = require('../../src/services/userService');
+      const mockUser = {
+        _id: new mongoose.Types.ObjectId(),
+        name: 'OAuth User',
+        email: 'oauth-exchange@example.com',
+        role: 'User',
+        createdAt: new Date(),
+      };
+      const mockToken = 'mock-oauth-jwt-token-xyz';
+
+      const code = userService.createOAuthExchangeTicket({ user: mockUser, token: mockToken });
+      expect(code).toBeTruthy();
+
+      // 1. First exchange attempt: MUST succeed
+      const res1 = await request(app)
+        .post('/api/users/auth/google/exchange')
+        .send({ code });
+
+      expect(res1.status).toBe(200);
+      expect(res1.body.success).toBe(true);
+      expect(res1.body.data.token).toBe(mockToken);
+      expect(res1.body.data.user.email).toBe('oauth-exchange@example.com');
+      expect(res1.body.data.user.role).toBe('User');
+      expect(res1.body.data.user).not.toHaveProperty('password');
+      expect(res1.body.data.user).not.toHaveProperty('googleId');
+
+      // 2. Second exchange attempt with same code: MUST fail (single-use guarantee)
+      const res2 = await request(app)
+        .post('/api/users/auth/google/exchange')
+        .send({ code });
+
+      expect(res2.status).toBe(400);
+      expect(res2.body.success).toBe(false);
+      expect(res2.body.message).toMatch(/invalid|expired/i);
+    });
+
+    it('POST /api/users/auth/google/exchange rejects expired exchange code', async () => {
+      const userService = require('../../src/services/userService');
+      const mockUser = {
+        _id: new mongoose.Types.ObjectId(),
+        name: 'Expired OAuth User',
+        email: 'expired@example.com',
+        role: 'User',
+      };
+      const mockToken = 'mock-expired-token';
+
+      const code = userService.createOAuthExchangeTicket({ user: mockUser, token: mockToken });
+
+      const origDateNow = Date.now;
+      try {
+        Date.now = () => origDateNow() + 65 * 1000; // 65 seconds later (> 60s TTL)
+        const res = await request(app)
+          .post('/api/users/auth/google/exchange')
+          .send({ code });
+
+        expect(res.status).toBe(400);
+        expect(res.body.success).toBe(false);
+        expect(res.body.message).toMatch(/expired/i);
+      } finally {
+        Date.now = origDateNow;
+      }
     });
   });
 });

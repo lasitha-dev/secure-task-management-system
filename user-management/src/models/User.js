@@ -36,6 +36,19 @@ const userSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  // ---- A07:2021 Brute-force / account-lockout fields -------------------------
+  // Hidden from API responses by default (select: false).
+  failedLoginAttempts: {
+    type: Number,
+    default: 0,
+    select: false,
+  },
+  lockUntil: {
+    type: Date,
+    default: null,
+    select: false,
+  },
+  // ---------------------------------------------------------------------------
 });
 
 // Require password for non-OAuth users (only on new documents)

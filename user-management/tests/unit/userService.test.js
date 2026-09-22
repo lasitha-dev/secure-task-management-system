@@ -81,7 +81,10 @@ describe('userService', () => {
         name: 'John Doe',
         email: 'john@example.com',
         role: 'User',
+        failedLoginAttempts: 0,
+        lockUntil: null,
         matchPassword: jest.fn().mockResolvedValue(true),
+        save: jest.fn().mockResolvedValue(true), // needed: loginUser resets counters on success
       };
 
       User.findOne.mockReturnValue({
@@ -112,7 +115,10 @@ describe('userService', () => {
       const mockUser = {
         _id: 'user-id-123',
         email: 'john@example.com',
+        failedLoginAttempts: 0,
+        lockUntil: null,
         matchPassword: jest.fn().mockResolvedValue(false),
+        save: jest.fn().mockResolvedValue(true), // needed: loginUser persists counter on failure
       };
 
       User.findOne.mockReturnValue({

@@ -28,6 +28,8 @@ afterAll(async () => {
 
 // Require app after env is set (NODE_ENV=test prevents listen/connectDB)
 const app = require('../../src/app');
+// User model — used by security tests to manipulate lockout state directly
+const User = require('../../src/models/User');
 
 describe('User API Routes', () => {
   describe('POST /api/users/register', () => {
@@ -410,9 +412,7 @@ describe('User API Routes', () => {
   // ===========================================================================
   // SECURITY TESTS — A07:2021 Brute-Force / Account Lockout
   //
-  // These tests describe the INTENDED secure behaviour.
-  // They are expected to FAIL against the current unprotected implementation
-  // and will PASS once account-lockout hardening is added.
+  // All four tests in this suite are GREEN after Phase 1 hardening.
   // ===========================================================================
   describe('[SECURITY] Brute-force protection — POST /api/users/login', () => {
     const VICTIM_EMAIL = 'brute@example.com';
@@ -446,14 +446,15 @@ describe('User API Routes', () => {
     }
 
     it(
-      '[FAIL-EXPECTED] should return 401 for each of the first 5 failed attempts ' +
+      'should return 401 for each of the first 5 failed attempts ' +
       '(correct email, wrong password)',
       async () => {
-        // Arrange / Act
+        // Arrange / Act — send exactly MAX_ATTEMPTS bad-password requests
         const responses = await sendFailedAttempts(MAX_ATTEMPTS);
 
-        // Assert — each attempt should be rejected with 401
-        responses.forEach((res, i) => {
+        // Assert — every attempt returns 401 with the generic message;
+        // the 5th attempt also sets the lock, but still responds 401.
+        responses.forEach((res) => {
           expect(res.status).toBe(401);
           expect(res.body.success).toBe(false);
           expect(res.body.message).toBe('Invalid email or password');
@@ -462,20 +463,18 @@ describe('User API Routes', () => {
     );
 
     it(
-      '[FAIL-EXPECTED] should return HTTP 429 and lock the account after ' +
+      'should return HTTP 429 and lock the account after ' +
       MAX_ATTEMPTS + ' consecutive failed login attempts',
       async () => {
-        // Arrange — exhaust allowed attempts
+        // Arrange — exhaust the allowed attempts (5th sets lockUntil)
         await sendFailedAttempts(MAX_ATTEMPTS);
 
-        // Act — the (MAX_ATTEMPTS + 1)th attempt should trigger lockout
+        // Act — the (MAX_ATTEMPTS + 1)th attempt hits the locked account
         const res = await request(app)
           .post('/api/users/login')
           .send({ email: VICTIM_EMAIL, password: WRONG_PASSWORD });
 
-        // Assert — secure behaviour: account locked → 429 Too Many Requests
-        // CURRENTLY FAILS because no lockout mechanism exists;
-        // the server returns 401 instead of 429.
+        // Assert — account is locked → 429 Too Many Requests
         expect(res.status).toBe(429);
         expect(res.body.success).toBe(false);
         expect(res.body.message).toMatch(/too many|locked|try again/i);
@@ -483,50 +482,90 @@ describe('User API Routes', () => {
     );
 
     it(
-      '[FAIL-EXPECTED] should return HTTP 429 when the correct password is used ' +
+      'should return HTTP 429 when the correct password is used ' +
       'on a locked account',
+      async () => {
+        // Arrange — lock the account via 5 failed attempts
+        await sendFailedAttempts(MAX_ATTEMPTS);
+
+        // Act — correct password while account is locked
+        const res = await request(app)
+          .post('/api/users/login')
+          .send({ email: VICTIM_EMAIL, password: VICTIM_PASSWORD });
+
+        // Assert — lock takes precedence even over a valid password
+        expect(res.status).toBe(429);
+        expect(res.body.success).toBe(false);
+        expect(res.body.message).toMatch(/too many|locked|try again/i);
+      }
+    );
+
+    it(
+      'should allow a successful login and reset the failed-attempt ' +
+      'counter after the lockout period has expired',
       async () => {
         // Arrange — lock the account
         await sendFailedAttempts(MAX_ATTEMPTS);
 
-        // Act — attempt login with the CORRECT password while account is locked
+        // Simulate lock expiry by writing a past timestamp directly to the DB.
+        // This avoids a real 15-minute wait and keeps the test deterministic.
+        await User.updateOne(
+          { email: VICTIM_EMAIL },
+          { lockUntil: new Date(Date.now() - 1000) } // 1 second in the past
+        );
+
+        // Act — attempt login with the correct password after expiry
         const res = await request(app)
           .post('/api/users/login')
           .send({ email: VICTIM_EMAIL, password: VICTIM_PASSWORD });
 
-        // Assert — even correct credentials must be rejected while locked
-        // CURRENTLY FAILS: server returns 200 with a valid JWT instead of 429.
-        expect(res.status).toBe(429);
-        expect(res.body.success).toBe(false);
-        expect(res.body.message).toMatch(/too many|locked|try again/i);
+        // Assert — login succeeds and counters are reset
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data).toHaveProperty('token');
+
+        // Verify that the DB counters were cleared by the service
+        const dbUser = await User.findOne({ email: VICTIM_EMAIL })
+          .select('+failedLoginAttempts +lockUntil');
+        expect(dbUser.failedLoginAttempts).toBe(0);
+        expect(dbUser.lockUntil).toBeNull();
       }
     );
 
     it(
-      '[FAIL-EXPECTED] should allow successful login and reset the failed-attempt ' +
-      'counter after the lockout period has expired',
+      'should NOT immediately re-lock the account on the first WRONG password ' +
+      'after the lockout period has expired (stale-counter edge case)',
       async () => {
-        // NOTE: This test documents the expected behaviour after lock expiry.
-        // In the hardened implementation the lock window is short (e.g. 15 min).
-        // For test purposes the hardening layer should expose a way to clear
-        // the lockout (e.g., via a short TTL or a test-only reset hook).
-        //
-        // Arrange — exhaust attempts to lock the account
+        // Arrange — lock the account (failedLoginAttempts = 5, lockUntil = future)
         await sendFailedAttempts(MAX_ATTEMPTS);
 
-        // Act — simulate lock expiry by making a successful login request.
-        // With no lockout implemented this currently succeeds (200), so the
-        // test assertion below will FAIL until the lock + expiry is added.
+        // Simulate lock expiry: lockUntil is set to 1 second in the past.
+        // failedLoginAttempts is deliberately left at MAX_LOGIN_ATTEMPTS (5)
+        // to reproduce the stale-counter bug.
+        await User.updateOne(
+          { email: VICTIM_EMAIL },
+          { lockUntil: new Date(Date.now() - 1000) }
+        );
+
+        // Act — send ONE wrong password after the lock has expired
         const res = await request(app)
           .post('/api/users/login')
-          .send({ email: VICTIM_EMAIL, password: VICTIM_PASSWORD });
+          .send({ email: VICTIM_EMAIL, password: WRONG_PASSWORD });
 
-        // Assert — after lock expiry a correct-password login must succeed
-        // CURRENTLY FAILS: The test runner cannot simulate lock expiry without
-        // the hardening layer; this assertion will be revisited in Phase 1 impl.
-        expect(res.status).toBe(200);
-        expect(res.body.success).toBe(true);
-        expect(res.body.data).toHaveProperty('token');
+        // Assert — must return 401, NOT 429.
+        // Before the fix: the service would see failedLoginAttempts=5, increment
+        // to 6, satisfy (6 >= 5) and immediately re-lock → silent re-lock bug.
+        // After the fix: expired counters are reset to 0 first, so the attempt
+        // counts as #1 and no lock is set.
+        expect(res.status).toBe(401);
+        expect(res.body.success).toBe(false);
+        expect(res.body.message).toBe('Invalid email or password');
+
+        // Verify the counter is 1 (fresh window) and no new lock was set
+        const dbUser = await User.findOne({ email: VICTIM_EMAIL })
+          .select('+failedLoginAttempts +lockUntil');
+        expect(dbUser.failedLoginAttempts).toBe(1);
+        expect(dbUser.lockUntil).toBeNull();
       }
     );
   });

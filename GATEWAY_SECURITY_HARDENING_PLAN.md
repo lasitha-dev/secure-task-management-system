@@ -1,0 +1,309 @@
+# API Gateway & Routing Security Hardening Plan
+
+**Member 1:** A.L.M. Athulathmudali (`IT21129544`)  
+**Core Component:** API Gateway & Docker Infrastructure  
+**Assigned Git Branch:** `feature/gateway-security-hardening` (active: `fix/gateway-security-hardening`)  
+**Target Module:** `api-gateway`  
+**Governing Standards:** OWASP Top 10:2021 (A05:2021 – Security Misconfiguration), DevSecOps Hardening Rules (`.agents/rules/rules.md`)
+
+---
+
+## Executive Summary & Objective
+
+This document outlines the phased engineering roadmap for remediating critical security misconfigurations in the Express-based API Gateway. The fixes address missing defensive HTTP response headers, permissive CORS policies, rate-limiting defense-in-depth, and reverse-proxy integrity for Google OAuth 2.0 / OIDC authentication flows. All remediations are backed by automated Jest/Supertest test suites and verified against OWASP ZAP DAST scan rules (10020, 10021, 10038, 10049).
+
+---
+
+## Architectural & Security Invariants
+
+1. **Strict Pipeline Execution Order (`src/server.js`):**
+   ```
+   [1. Response Header Security (Helmet)]
+                    │
+                    ▼
+   [2. Origin Authorization & Preflight (CORS)]
+                    │
+                    ▼
+   [3. Traffic Shaping & Protection (Rate Limiter & Logger)]
+                    │
+                    ▼
+   [4. Health Checks & Proxy Dispatchers (Reverse Proxy Engine)]
+   ```
+2. **Modular Separation of Concerns:**
+   - No arbitrary inline security middleware configuration inside `server.js`.
+   - Security headers configuration isolated in `src/config/securityHeaders.js`.
+   - CORS policy configuration isolated in `src/config/corsConfig.js`.
+   - All modules export testable factory functions and option dictionaries.
+3. **Fail-Secure Configuration:**
+   - Environmental variables with strictly validated fallbacks.
+   - Zero tolerance for wildcard reflections (`*`) when credentials are enabled.
+   - Complete suppression of runtime fingerprinting (`X-Powered-By`).
+4. **OAuth 2.0 / Reverse-Proxy Invariance:**
+   - Unaltered pass-through of HTTP `302`/`307` redirects from downstream services.
+   - Non-destructive forwarding of query strings (`code`, `state`), `Authorization` headers, and cookies.
+
+---
+
+## Detailed Execution Phases & Subphases
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│ Phase 1: Environment & Dependency Baseline Preparation                 │
+│  ├─ 1.1: Git Branch & Test Baseline Verification                       │
+│  ├─ 1.2: Dependency Management (Add helmet to package.json)            │
+│  └─ 1.3: Gateway Environment Variable Modeling & Defaults              │
+├────────────────────────────────────────────────────────────────────────┤
+│ Phase 2: Defensive HTTP Headers Implementation (OWASP A05:2021)        │
+│  ├─ 2.1: Modular Security Headers Configuration (src/config/...)       │
+│  ├─ 2.2: Technology Profile Masking (X-Powered-By Suppression)         │
+│  └─ 2.3: Security Headers Test Suite (tests/unit/securityHeaders...)   │
+├────────────────────────────────────────────────────────────────────────┤
+│ Phase 3: CORS Policy Hardening & Preflight Control (OWASP A05:2021)    │
+│  ├─ 3.1: Dynamic Whitelist Origin Authorization Module                 │
+│  ├─ 3.2: Immediate Preflight (OPTIONS) Termination & Method Whitelisting│
+│  └─ 3.3: CORS Policy Test Suite (tests/unit/corsPolicy.test.js)        │
+├────────────────────────────────────────────────────────────────────────┤
+│ Phase 4: Gateway Pipeline Restructuring & Traffic Shaping              │
+│  ├─ 4.1: Server Pipeline Reordering in src/server.js                   │
+│  ├─ 4.2: Rate Limiter Hardening & Proxy Trust Configuration            │
+│  └─ 4.3: Gateway Integration Test Update (tests/integration/...)       │
+├────────────────────────────────────────────────────────────────────────┤
+│ Phase 5: Reverse-Proxy Integrity & OAuth 2.0 Compatibility             │
+│  ├─ 5.1: Proxy Routing Table Audit & Route Synchronization             │
+│  ├─ 5.2: OAuth 2.0 Redirect & State Forwarding Verification            │
+│  └─ 5.3: OAuth Reverse-Proxy Integration Test Suite                    │
+├────────────────────────────────────────────────────────────────────────┤
+│ Phase 6: Automated Verification, DAST Audit (ZAP), & Evidence Packaging│
+│  ├─ 6.1: Comprehensive Unit & Integration Test Execution (100% Pass)   │
+│  ├─ 6.2: OWASP ZAP Baseline DAST Scan Execution & Alert Remediation    │
+│  └─ 6.3: Verification Checklist & Audit Trail Deliverable Packaging   │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Phase 1: Environment & Dependency Baseline Preparation
+
+#### Subphase 1.1: Git Branch & Test Baseline Verification [COMPLETED]
+- **Branch Confirmed:** `fix/gateway-security-hardening` (tracking `origin/fix/gateway-security-hardening`).
+- **Baseline Test Execution:**
+  - Ran `npm test` (`jest --coverage`) in `api-gateway`.
+  - **Results:** 4 test suites passed (`logger.test.js`, `proxyConfig.test.js`, `rateLimiter.test.js`, `server.test.js`), 7 tests passed, 0 failures.
+  - **Baseline Code Coverage:**
+    - Statements: 75.86%
+    - Branches: 50.98%
+    - Functions: 44.44%
+    - Lines: 75.86%
+  - **Identified Uncovered Lines in `src/server.js`:** 12-24, 45-51, 62-63 (proxy resolution and listen callback).
+- **Working Tree State:** Clean branch tracking remote, ready for dependency installation.
+
+#### Subphase 1.2: Dependency Resolution
+- Add `helmet` (`^8.0.0` or latest compatible) to `api-gateway/package.json` under `dependencies`.
+- Run `npm install` inside `api-gateway` to update `package-lock.json` and ensure reproducible builds.
+- Verify that `package.json` dependencies contain:
+  - `express`: `^4.21.2`
+  - `helmet`: `^8.0.0`
+  - `cors`: `^2.8.5`
+  - `http-proxy-middleware`: `^3.0.3`
+  - `dotenv`: `^16.4.7`
+
+#### Subphase 1.3: Gateway Environment Variable Modeling & Defaults
+- Define the configuration schema in a centralized environment module (`src/config/env.js` or within config modules):
+  - `PORT`: Gateway listening port (default: `8000`).
+  - `NODE_ENV`: Runtime mode (`development`, `test`, `production`).
+  - `FRONTEND_URL` / `CORS_ORIGIN`: Comma-separated list of allowed origins (default: `http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000`).
+  - `RATE_LIMIT_WINDOW_MS`: Time window for rate limiting in ms (default: `900000` = 15m).
+  - `RATE_LIMIT_MAX_REQUESTS`: Max requests per window per IP (default: `100`).
+  - Downservice URLs (`USER_SERVICE_URL`, `TASK_SERVICE_URL`, `NOTIFICATION_SERVICE_URL`, `REPORTING_SERVICE_URL`).
+- Create `api-gateway/.env.example` documenting all configuration keys with safe defaults.
+
+---
+
+### Phase 2: Defensive HTTP Headers Implementation (OWASP A05:2021)
+
+#### Subphase 2.1: Modular Security Headers Configuration
+- Create `api-gateway/src/config/securityHeaders.js` exporting:
+  - `securityHeadersOptions`: Configuration object passed to `helmet()`.
+  - `getSecurityHeadersMiddleware()`: Factory function returning configured helmet middleware.
+- Directives to configure:
+  1. **Content-Security-Policy (CSP):**
+     - `default-src`: `["'self'"]`
+     - `script-src`: `["'self'"]`
+     - `style-src`: `["'self'", "'unsafe-inline'"]`
+     - `img-src`: `["'self'", "data:", "https:"]`
+     - `connect-src`: `["'self'", ...allowedOrigins, "https://accounts.google.com"]`
+     - `frame-src`: `["'none'"]`
+     - `object-src`: `["'none'"]`
+     - `base-uri`: `["'self'"]`
+     - `form-action`: `["'self'", "https://accounts.google.com"]`
+  2. **Clickjacking Defense:**
+     - `frameguard`: `{ action: 'deny' }` (Sets `X-Frame-Options: DENY`)
+  3. **MIME-Type Sniffing Mitigation:**
+     - `noSniff: true` (Sets `X-Content-Type-Options: nosniff`)
+  4. **Strict Transport Security (HSTS):**
+     - `hsts`: `{ maxAge: 31536000, includeSubDomains: true, preload: true }`
+  5. **Referrer Policy:**
+     - `referrerPolicy`: `{ policy: 'strict-origin-when-cross-origin' }`
+  6. **Permissions Policy:**
+     - Custom middleware or header injector disabling unneeded browser features:
+       `camera=(), microphone=(), geolocation=(), payment=()`
+
+#### Subphase 2.2: Technology Profiling Elimination
+- Ensure Express does not advertise `X-Powered-By: Express`.
+- Configure `app.disable('x-powered-by')` explicitly in `createApp()`.
+- Ensure Helmet’s `hidePoweredBy` is enabled.
+
+#### Subphase 2.3: Security Headers Test Suite
+- Create `api-gateway/tests/unit/securityHeaders.test.js`:
+  1. Assert `X-Powered-By` header is explicitly absent from all responses.
+  2. Assert `X-Frame-Options` is present and equals `DENY`.
+  3. Assert `X-Content-Type-Options` is present and equals `nosniff`.
+  4. Assert `Content-Security-Policy` header is present, non-empty, and contains restrictive directives (`default-src 'self'`).
+  5. Assert `Strict-Transport-Security` header is present and enforces `max-age` of at least `31536000` with `includeSubDomains`.
+  6. Assert `Referrer-Policy` is present and equals `strict-origin-when-cross-origin`.
+
+---
+
+### Phase 3: CORS Policy Hardening & Preflight Control (OWASP A05:2021)
+
+#### Subphase 3.1: Dynamic Whitelist Origin Authorization Module
+- Create `api-gateway/src/config/corsConfig.js` exporting:
+  - `getAllowedOrigins()`: Parses environment configuration (`CORS_ORIGIN` / `FRONTEND_URL`) into an array of trimmed URLs with fail-secure defaults (`http://localhost:5173,http://127.0.0.1:5173`).
+  - `corsOptions`: Options dictionary for `cors(corsOptions)`:
+    - `origin(origin, callback)`:
+      - Direct / non-browser requests (`!origin`): Allow (`callback(null, true)`).
+      - Whitelisted origins: Allow (`callback(null, true)`).
+      - Untrusted origins: Disallow (`callback(null, false)`) so that `Access-Control-Allow-Origin` is **never** emitted.
+    - `credentials: true`: Enables secure cookie/token exchange.
+    - `methods`: `['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']`
+    - `allowedHeaders`: `['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']`
+    - `exposedHeaders`: `['Content-Range', 'X-Content-Range']`
+    - `optionsSuccessStatus`: `204`
+    - `maxAge`: `86400` (24 hours preflight caching)
+
+#### Subphase 3.2: Immediate Preflight Interception
+- Guarantee that `OPTIONS` requests matching configured endpoints terminate at the gateway level with `204 No Content` or `200 OK` and required CORS headers, without hitting downstream services or consuming backend resources.
+
+#### Subphase 3.3: CORS Policy Test Suite
+- Create `api-gateway/tests/unit/corsPolicy.test.js`:
+  1. **Authorized Origin (Positive Test):**
+     - Request with `Origin: http://localhost:5173` receives `Access-Control-Allow-Origin: http://localhost:5173` and `Access-Control-Allow-Credentials: true`.
+  2. **Unauthorized Origin (Negative Test):**
+     - Request with `Origin: http://malicious-attacker.com` does **not** receive `Access-Control-Allow-Origin`.
+  3. **Wildcard Rejection Test:**
+     - Verify `Access-Control-Allow-Origin` is never `*` when credentials are true.
+  4. **Preflight Handling (OPTIONS Test):**
+     - `OPTIONS` request with `Access-Control-Request-Method: POST` returns `204` or `200` with permissible methods and headers.
+  5. **Direct / Non-Browser Request Handling:**
+     - Request without `Origin` header (like curl or health checks) returns HTTP `200` without server errors.
+
+---
+
+### Phase 4: Gateway Pipeline Restructuring & Traffic Shaping
+
+#### Subphase 4.1: Server Pipeline Reordering in `src/server.js`
+- Refactor `createApp()` in `api-gateway/src/server.js`:
+  1. Disable `x-powered-by` via `app.disable('x-powered-by')`.
+  2. Set `app.set('trust proxy', 1)` to correctly interpret client IP behind Docker bridge / reverse proxy.
+  3. Attach `securityHeadersMiddleware` (`helmet(securityHeadersOptions)`).
+  4. Attach `cors(corsOptions)`.
+  5. Attach `logger`.
+  6. Attach `rateLimiter`.
+  7. Register local routes (`/health`).
+  8. Register proxy dispatcher (`/api`).
+
+#### Subphase 4.2: Rate Limiter Hardening
+- Review and refine `api-gateway/src/middleware/rateLimiter.js`:
+  - Parameterize `WINDOW_MS` and `MAX_REQUESTS` from environment variables (`RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX_REQUESTS`) with safe defaults (15 min, 100 requests).
+  - Add standard rate-limiting headers: `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` / `Retry-After`.
+  - Maintain existing test coverage in `tests/unit/rateLimiter.test.js`.
+
+#### Subphase 4.3: Integration Test Suite Update
+- Update `api-gateway/tests/integration/server.test.js` to assert end-to-end integration:
+  - `/health` endpoint returns `200 OK` with complete security headers present and `x-powered-by` absent.
+  - Proper rate limit behavior over consecutive requests.
+
+---
+
+### Phase 5: Reverse-Proxy Integrity & OAuth 2.0 Compatibility
+
+#### Subphase 5.1: Proxy Routing Table Audit & Route Synchronization
+- Validate `api-gateway/src/config/proxyConfig.js` against microservice topology:
+  - `/api/users` -> `USER_SERVICE_URL` (`http://localhost:5001` / `http://user-management:5001`)
+  - `/api/tasks` -> `TASK_SERVICE_URL` (`http://localhost:5002` / `http://task-management:5002`)
+  - `/api/boards` -> `TASK_SERVICE_URL` (`http://localhost:5002` / `http://task-management:5002`)
+  - `/api/notifications` -> `NOTIFICATION_SERVICE_URL` (`http://localhost:5003` / `http://notifications-management:5003`)
+  - `/api/reports`, `/api/analytics`, `/api/sync` -> `REPORTING_SERVICE_URL` (`http://localhost:5004` / `http://reporting-analytics:5000`)
+- Ensure `proxyConfig.test.js` continues to pass without regression.
+
+#### Subphase 5.2: OAuth 2.0 Route Pass-through Validation
+- Audit proxy handlers for OAuth compatibility:
+  - Route: `/api/users/auth/google` (initiates consent handshake)
+  - Route: `/api/users/auth/google/callback` (Google callback with query parameters `?code=...&state=...`)
+- Requirements:
+  - Proxy configuration must NOT strip query parameters (`preserveHeaderKeyCase`, `autoRewrite: false`).
+  - Proxy must forward HTTP `302`/`307` redirect responses intact with `Location` header back to the browser.
+  - Proxy must preserve `Set-Cookie` and `Cookie` headers for session integrity.
+
+#### Subphase 5.3: Reverse-Proxy OAuth Integration Test Suite
+- Create `api-gateway/tests/integration/oauthProxy.test.js`:
+  - Mock downstream User Service redirecting `302` to `https://accounts.google.com/o/oauth2/v2/auth?...`.
+  - Verify API Gateway returns HTTP `302` with intact `Location` containing `client_id`, `state`, `redirect_uri`.
+  - Simulate callback request `/api/users/auth/google/callback?code=mock_code&state=mock_state`.
+  - Verify query parameters are transmitted intact to downstream mock handler.
+
+---
+
+### Phase 6: Automated Verification, DAST Audit (ZAP), & Evidence Packaging
+
+#### Subphase 6.1: Comprehensive Unit & Integration Test Execution
+- Run `npm test` in `api-gateway`.
+- Target: 100% tests passing across all suites:
+  - `tests/unit/securityHeaders.test.js`
+  - `tests/unit/corsPolicy.test.js`
+  - `tests/unit/rateLimiter.test.js`
+  - `tests/unit/logger.test.js`
+  - `tests/unit/proxyConfig.test.js`
+  - `tests/integration/server.test.js`
+  - `tests/integration/oauthProxy.test.js`
+- Generate and verify code coverage report (`coverage/lcov-report/index.html`).
+
+#### Subphase 6.2: OWASP ZAP Baseline DAST Execution & Alert Remediation
+- Run OWASP ZAP baseline scan against API Gateway container/local listener:
+  ```bash
+  docker run --rm -v $(pwd):/zap/wrk/:rw -t zaproxy/zap-stable zap-baseline.py \
+    -t http://host.docker.internal:8000/ \
+    -r zap-baseline-gateway-report.html \
+    -J zap-baseline-gateway-report.json
+  ```
+- Verify zero High/Medium/Low alerts for targeted rules:
+  - **Rule 10020:** Anti-CSRF / Anti-Clickjacking Header Missing -> **PASSED** (`X-Frame-Options: DENY`, `frame-ancestors 'none'`)
+  - **Rule 10021:** X-Content-Type-Options Header Missing -> **PASSED** (`X-Content-Type-Options: nosniff`)
+  - **Rule 10038:** Content Security Policy (CSP) Header Not Set -> **PASSED** (Strict CSP headers present)
+  - **Rule 10049:** Stale or Permissive CORS Headers -> **PASSED** (Origin whitelist enforced, no wildcard credentials)
+
+#### Subphase 6.3: Verification Checklist & Audit Trail Deliverable
+- Complete verification of all items in `.agents/rules/rules.md`:
+  - [x] No hardcoded URLs, ports, or origins in source files.
+  - [x] New modules follow `camelCase.js` convention and test suites follow `.test.js`.
+  - [x] All new dependencies (`helmet`) tracked in `package.json`.
+  - [x] Full `npm test` suite executes with 100% green assertions.
+  - [x] Downstream microservice proxy rules in `proxyConfig.js` remain fully functional.
+  - [x] Documented evidence formatted for inclusion in `SE4030_Assignment_Report.pdf` and YouTube demonstration video.
+
+---
+
+## File Modification & Creation Inventory
+
+| File Path | Action | Description |
+| :--- | :---: | :--- |
+| `api-gateway/package.json` | **MODIFY** | Add `helmet` dependency. |
+| `api-gateway/.env.example` | **NEW** | Template configuration for gateway environment variables. |
+| `api-gateway/src/config/securityHeaders.js` | **NEW** | Modular Helmet and security response headers configuration. |
+| `api-gateway/src/config/corsConfig.js` | **NEW** | Modular dynamic CORS whitelist and preflight options. |
+| `api-gateway/src/server.js` | **MODIFY** | Reorder pipeline (Helmet -> CORS -> Logger/RateLimit -> Proxy), wire modular configs. |
+| `api-gateway/src/middleware/rateLimiter.js` | **MODIFY** | Parameterize thresholds from env, add standard rate-limit headers. |
+| `api-gateway/tests/unit/securityHeaders.test.js` | **NEW** | Unit test suite asserting all 6 OWASP defensive headers. |
+| `api-gateway/tests/unit/corsPolicy.test.js` | **NEW** | Unit test suite asserting authorized, unauthorized, wildcard-free, and preflight CORS flows. |
+| `api-gateway/tests/integration/server.test.js` | **MODIFY** | Integration test asserting live headers and health endpoint behavior. |
+| `api-gateway/tests/integration/oauthProxy.test.js` | **NEW** | Integration test asserting OAuth2 redirect and parameter passthrough. |

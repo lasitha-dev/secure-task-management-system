@@ -325,17 +325,27 @@ describe('User API Routes', () => {
           password: 'password123',
         });
 
-      // Register an admin
-      const adminRes = await request(app)
+      // Register an admin user
+      await request(app)
         .post('/api/users/register')
         .send({
           name: 'Admin User',
           email: 'admin@example.com',
           password: 'password123',
-          role: 'Admin',
         });
 
-      adminToken = adminRes.body.data.token;
+      // Elevate role to Admin in the DB
+      await User.updateOne({ email: 'admin@example.com' }, { role: 'Admin' });
+
+      // Authenticate as Admin to get Admin token
+      const adminLoginRes = await request(app)
+        .post('/api/users/login')
+        .send({
+          email: 'admin@example.com',
+          password: 'password123',
+        });
+
+      adminToken = adminLoginRes.body.data.token;
     });
 
     it('should return all users for admin (200)', async () => {
@@ -1106,21 +1116,23 @@ describe('User API Routes', () => {
         const dbUser = await User.findOne({ email: ATTACKER_PAYLOAD.email });
         console.log('[PHASE 3 DIAGNOSTIC] DB User role:', dbUser ? dbUser.role : null);
 
-        // Security requirement: Resulting database user must NOT have role "Admin"
-        if (dbUser) {
-          expect(dbUser.role).not.toBe('Admin');
-        }
+        expect(res.status).toBe(201);
+        expect(res.body.success).toBe(true);
 
-        // Security requirement: Response body data (if returned) must not have role "Admin"
-        if (res.body?.data?.role) {
-          expect(res.body.data.role).not.toBe('Admin');
-        }
+        // Security requirement: Resulting database user must NOT have role "Admin", must be "User"
+        expect(dbUser).toBeDefined();
+        expect(dbUser.role).not.toBe('Admin');
+        expect(dbUser.role).toBe('User');
 
-        // Security requirement: JWT token (if returned) must not grant Admin role
-        if (res.body?.data?.token) {
-          const decoded = jwt.decode(res.body.data.token);
-          expect(decoded.role).not.toBe('Admin');
-        }
+        // Security requirement: Response body data must have role "User", not "Admin"
+        expect(res.body.data.role).not.toBe('Admin');
+        expect(res.body.data.role).toBe('User');
+
+        // Security requirement: JWT token must grant role "User", not "Admin"
+        expect(res.body.data).toHaveProperty('token');
+        const decoded = jwt.decode(res.body.data.token);
+        expect(decoded.role).not.toBe('Admin');
+        expect(decoded.role).toBe('User');
       }
     );
 

@@ -72,6 +72,31 @@ describe('userService', () => {
 
       expect(result.role).toBe('User');
     });
+
+    it('should ignore any supplied role and enforce role User', async () => {
+      User.findOne.mockResolvedValue(null);
+      User.create.mockResolvedValue({
+        _id: 'user-id-123',
+        name: 'Attacker Admin',
+        email: 'attacker@example.com',
+        role: 'User',
+      });
+
+      const result = await userService.registerUser({
+        name: 'Attacker Admin',
+        email: 'attacker@example.com',
+        password: 'password123',
+        role: 'Admin',
+      });
+
+      expect(User.create).toHaveBeenCalledWith({
+        name: 'Attacker Admin',
+        email: 'attacker@example.com',
+        password: 'password123',
+        role: 'User',
+      });
+      expect(result.role).toBe('User');
+    });
   });
 
   describe('loginUser', () => {

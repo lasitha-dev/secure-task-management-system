@@ -15,7 +15,7 @@ const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15-minute lockout window
 const DUMMY_HASH = bcrypt.hashSync('__timing_guard_dummy__', 10);
 // ----------------------------------------------------------------------------
 
-const registerUser = async ({ name, email, password, role }) => {
+const registerUser = async ({ name, email, password }) => {
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     const error = new Error('User already exists');
@@ -23,7 +23,9 @@ const registerUser = async ({ name, email, password, role }) => {
     throw error;
   }
 
-  const user = await User.create({ name, email, password, role });
+  // Public registration must always create a standard User account.
+  // Enforce role: 'User' (defense-in-depth against client-supplied role parameters).
+  const user = await User.create({ name, email, password, role: 'User' });
   const token = generateToken(user._id, user.role, user.name, user.email);
 
   return {

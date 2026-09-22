@@ -7,8 +7,8 @@ const registerUser = async (req, res, next) => {
     if (!errors.isEmpty()) {
       return res.status(400).json({ success: false, errors: errors.array() });
     }
-    const { name, email, password, role } = req.body;
-    const user = await userService.registerUser({ name, email, password, role });
+    const { name, email, password } = req.body;
+    const user = await userService.registerUser({ name, email, password });
     res.status(201).json({ success: true, data: user });
   } catch (error) {
     next(error);

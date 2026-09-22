@@ -1165,5 +1165,181 @@ describe('User API Routes', () => {
       }
     );
   });
+
+  // ===========================================================================
+  // SECURITY / FEATURE TESTS — Phase 4: Google OAuth 2.0 Authorization Code Flow
+  //
+  // Authorization Code Flow (RFC 6749) with CSRF state protection and safe token
+  // handoff. Tests prove that the Authorization Code routes and state protection
+  // are currently absent/insecure in the baseline implementation.
+  // ===========================================================================
+  describe('[OAUTH] Google OAuth 2.0 Authorization Code Flow', () => {
+    // -------------------------------------------------------------------------
+    // 1. OAuth Initiation Route: GET /api/users/auth/google
+    // -------------------------------------------------------------------------
+    it('GET /api/users/auth/google must initiate OAuth redirect with client_id, scope, state, and set HttpOnly state cookie', async () => {
+      const res = await request(app).get('/api/users/auth/google');
+
+      // FAILS currently: Route does not exist (returns 404)
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toBeDefined();
+
+      const redirectUrl = new URL(res.headers.location);
+      expect(redirectUrl.hostname).toMatch(/accounts\.google\.com/);
+      expect(redirectUrl.searchParams.get('client_id')).toBeTruthy();
+      expect(redirectUrl.searchParams.get('redirect_uri')).toBeTruthy();
+      expect(redirectUrl.searchParams.get('scope')).toMatch(/profile|email/);
+
+      // State must be non-empty and unpredictable
+      const stateParam = redirectUrl.searchParams.get('state');
+      expect(stateParam).toBeTruthy();
+      expect(stateParam.length).toBeGreaterThanOrEqual(16);
+
+      // Response must set an HttpOnly cookie containing or binding the state nonce
+      const setCookie = res.headers['set-cookie'];
+      expect(setCookie).toBeDefined();
+      const stateCookie = (Array.isArray(setCookie) ? setCookie : [setCookie]).find((c) => c.includes('state'));
+      expect(stateCookie).toBeDefined();
+      expect(stateCookie).toMatch(/httponly/i);
+    });
+
+    // -------------------------------------------------------------------------
+    // 2. Callback rejects missing state: GET /api/users/auth/google/callback?code=mock-code
+    // -------------------------------------------------------------------------
+    it('GET /api/users/auth/google/callback must reject request when state parameter is missing (400/403)', async () => {
+      const res = await request(app)
+        .get('/api/users/auth/google/callback')
+        .query({ code: 'mock-authorization-code-123' });
+
+      // FAILS currently: Route does not exist (returns 404)
+      expect([400, 403]).toContain(res.status);
+      expect(res.body.success).toBe(false);
+
+      // No user creation or token issuance
+      const usersCount = await User.countDocuments({ email: /google/i });
+      expect(usersCount).toBe(0);
+    });
+
+    // -------------------------------------------------------------------------
+    // 3. Callback rejects mismatched state (CSRF Protection)
+    // -------------------------------------------------------------------------
+    it('GET /api/users/auth/google/callback must reject request when state does not match cookie (400/403)', async () => {
+      const res = await request(app)
+        .get('/api/users/auth/google/callback')
+        .query({ code: 'mock-auth-code', state: 'attacker-forged-state' })
+        .set('Cookie', ['oauth_state=legitimate-user-state']);
+
+      // FAILS currently: Route does not exist (returns 404)
+      expect([400, 403]).toContain(res.status);
+      expect(res.body.success).toBe(false);
+
+      const usersCount = await User.countDocuments({ email: /google/i });
+      expect(usersCount).toBe(0);
+    });
+
+    // -------------------------------------------------------------------------
+    // 4. JWT must never appear in callback redirect URL
+    // -------------------------------------------------------------------------
+    it('callback route must exist and never expose JWT directly in redirect Location header', async () => {
+      const res = await request(app)
+        .get('/api/users/auth/google/callback')
+        .query({ code: 'mock-code', state: 'mock-state' });
+
+      // FAILS currently: Route does not exist (returns 404)
+      expect(res.status).not.toBe(404);
+
+      if (res.headers.location) {
+        expect(res.headers.location).not.toMatch(/token=|jwt=|access_token=/i);
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // 5. Required OAuth configuration must not silently use insecure placeholders
+    // -------------------------------------------------------------------------
+    it('must reject or refuse to initialize Google OAuth with insecure placeholder credentials', () => {
+      const origId = process.env.GOOGLE_CLIENT_ID;
+      const origSecret = process.env.GOOGLE_CLIENT_SECRET;
+      try {
+        delete process.env.GOOGLE_CLIENT_ID;
+        delete process.env.GOOGLE_CLIENT_SECRET;
+
+        // Current code silently defaults to 'placeholder-client-id' / 'placeholder-client-secret'
+        const configurePassport = require('../../src/config/passport');
+        expect(() => configurePassport()).toThrow(/GOOGLE_CLIENT_ID.*required|missing.*OAuth/i);
+      } finally {
+        process.env.GOOGLE_CLIENT_ID = origId;
+        process.env.GOOGLE_CLIENT_SECRET = origSecret;
+      }
+    });
+
+    // -------------------------------------------------------------------------
+    // 6. OAuth-created role guard: boundary test
+    // -------------------------------------------------------------------------
+    it.todo(
+      '[FUTURE GREEN] Google OAuth-created user must always have role "User", never "Admin"'
+    );
+
+    // -------------------------------------------------------------------------
+    // 7. Verified-email linking guard: strategy boundary test
+    // -------------------------------------------------------------------------
+    it('OAuth strategy verify callback must refuse to link an unverified Google email to an existing account', async () => {
+      // 1. Create an existing local user
+      const VICTIM_EMAIL = 'victim-local@example.com';
+      await User.create({
+        name: 'Victim User',
+        email: VICTIM_EMAIL,
+        password: 'Password123!',
+        role: 'User',
+      });
+
+      // 2. Inspect the configured Passport GoogleStrategy verify function
+      const passport = require('passport');
+      const strategy = passport._strategies && passport._strategies.google;
+      expect(strategy).toBeDefined();
+
+      // 3. Simulate a Google profile where the email is UNVERIFIED
+      const unverifiedProfile = {
+        id: 'attacker-google-sub-999',
+        displayName: 'Attacker Impersonator',
+        emails: [{ value: VICTIM_EMAIL, verified: false }],
+      };
+
+      // 4. Invoke strategy verify callback
+      // FAILS currently: Current passport.js blindly links user.googleId without checking verification!
+      let verifyError = null;
+      let verifiedUser = null;
+
+      await new Promise((resolve) => {
+        strategy._verify('mock-access-token', 'mock-refresh-token', unverifiedProfile, (err, user) => {
+          verifyError = err;
+          verifiedUser = user;
+          resolve();
+        });
+      });
+
+      // Expected secure behaviour: Must refuse to link and return error
+      expect(verifyError).toBeTruthy();
+      expect(verifyError.message).toMatch(/verified/i);
+
+      // Verify DB: victim account must NOT have been linked to attacker's googleId
+      const dbVictim = await User.findOne({ email: VICTIM_EMAIL }).select('+googleId');
+      expect(dbVictim.googleId).toBeFalsy();
+    });
+
+    // -------------------------------------------------------------------------
+    // 8. Regression: Existing POST /api/users/google GIS endpoint remains intact
+    // -------------------------------------------------------------------------
+    it('POST /api/users/google continues to handle client-side GIS tokens (compatibility)', async () => {
+      const res = await request(app)
+        .post('/api/users/google')
+        .send({});
+
+      // Existing behavior: 400 when idToken is missing
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe('Google ID token is required');
+    });
+  });
 });
+
 

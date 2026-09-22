@@ -4,6 +4,7 @@ require('../setup');
 const mongoose = require('mongoose');
 const { MongoMemoryServer } = require('mongodb-memory-server');
 const request = require('supertest');
+const jwt = require('jsonwebtoken');
 
 let mongoServer;
 
@@ -1075,4 +1076,82 @@ describe('User API Routes', () => {
       }
     );
   });
+
+  // ===========================================================================
+  // SECURITY TESTS — Phase 3: Public Admin Self-Registration / Privilege Escalation
+  //
+  // Unauthenticated callers must NOT be able to register an account with role "Admin".
+  // The system must either reject the request (4xx) or ignore the supplied role and
+  // force "User". In either case, no Admin account or Admin token should be produced.
+  // ===========================================================================
+  describe('[SECURITY] Privilege Escalation — POST /api/users/register', () => {
+    const ATTACKER_PAYLOAD = {
+      name: 'Attacker Admin',
+      email: 'attacker-admin@example.com',
+      password: 'Password123!',
+      role: 'Admin',
+    };
+
+    it(
+      'public registration requesting role "Admin" must NOT create an Admin user in MongoDB',
+      async () => {
+        const res = await request(app)
+          .post('/api/users/register')
+          .send(ATTACKER_PAYLOAD);
+
+        console.log('[PHASE 3 DIAGNOSTIC] Registration response status:', res.status);
+        console.log('[PHASE 3 DIAGNOSTIC] Registration response body:', JSON.stringify(res.body, null, 2));
+
+        // Query the created user directly from MongoDB
+        const dbUser = await User.findOne({ email: ATTACKER_PAYLOAD.email });
+        console.log('[PHASE 3 DIAGNOSTIC] DB User role:', dbUser ? dbUser.role : null);
+
+        // Security requirement: Resulting database user must NOT have role "Admin"
+        if (dbUser) {
+          expect(dbUser.role).not.toBe('Admin');
+        }
+
+        // Security requirement: Response body data (if returned) must not have role "Admin"
+        if (res.body?.data?.role) {
+          expect(res.body.data.role).not.toBe('Admin');
+        }
+
+        // Security requirement: JWT token (if returned) must not grant Admin role
+        if (res.body?.data?.token) {
+          const decoded = jwt.decode(res.body.data.token);
+          expect(decoded.role).not.toBe('Admin');
+        }
+      }
+    );
+
+    it(
+      'normal public registration without role parameter should successfully create a standard User',
+      async () => {
+        const NORMAL_PAYLOAD = {
+          name: 'Legitimate User',
+          email: 'legit-user@example.com',
+          password: 'Password123!',
+        };
+
+        const res = await request(app)
+          .post('/api/users/register')
+          .send(NORMAL_PAYLOAD);
+
+        expect(res.status).toBe(201);
+        expect(res.body.success).toBe(true);
+        expect(res.body.data.role).toBe('User');
+        expect(res.body.data).toHaveProperty('token');
+
+        // Check MongoDB directly
+        const dbUser = await User.findOne({ email: NORMAL_PAYLOAD.email });
+        expect(dbUser).toBeDefined();
+        expect(dbUser.role).toBe('User');
+
+        // Check JWT token role
+        const decoded = jwt.decode(res.body.data.token);
+        expect(decoded.role).toBe('User');
+      }
+    );
+  });
 });
+

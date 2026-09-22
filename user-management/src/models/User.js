@@ -31,6 +31,7 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true,
     sparse: true,
+    select: false,
   },
   createdAt: {
     type: Date,
@@ -49,6 +50,29 @@ const userSchema = new mongoose.Schema({
     select: false,
   },
   // ---------------------------------------------------------------------------
+});
+
+// A02:2021 Sensitive Data Exposure — sanitize serialized output
+userSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    delete ret.password;
+    delete ret.googleId;
+    delete ret.failedLoginAttempts;
+    delete ret.lockUntil;
+    delete ret.__v;
+    return ret;
+  },
+});
+
+userSchema.set('toObject', {
+  transform: (doc, ret) => {
+    delete ret.password;
+    delete ret.googleId;
+    delete ret.failedLoginAttempts;
+    delete ret.lockUntil;
+    delete ret.__v;
+    return ret;
+  },
 });
 
 // Require password for non-OAuth users (only on new documents)

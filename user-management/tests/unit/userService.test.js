@@ -297,7 +297,10 @@ describe('userService', () => {
 
       const result = await userService.getAllUsers();
 
-      expect(User.find).toHaveBeenCalledWith({});
+      expect(User.find).toHaveBeenCalledWith(
+        {},
+        '_id name email role createdAt'
+      );
       expect(result).toHaveLength(2);
     });
   });

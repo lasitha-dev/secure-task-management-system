@@ -121,7 +121,6 @@ const getUserProfile = async (userId) => {
     name: user.name,
     email: user.email,
     role: user.role,
-    googleId: user.googleId,
     createdAt: user.createdAt,
   };
 };
@@ -181,7 +180,10 @@ const deleteUser = async (userId, requestingUser) => {
 };
 
 const getAllUsers = async () => {
-  const users = await User.find({});
+  const users = await User.find(
+    {},
+    '_id name email role createdAt'
+  );
   return users;
 };
 

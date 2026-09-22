@@ -644,4 +644,435 @@ describe('User API Routes', () => {
       }
     );
   });
+
+  // ===========================================================================
+  // SECURITY TESTS — A02:2021 Sensitive Data Exposure in API Responses
+  //
+  // The following fields must NEVER appear in any API response:
+  //   • googleId           — internal OAuth-linking field; exposes auth provider
+  //   • password           — hashed credential (select:false, but tested explicitly)
+  //   • failedLoginAttempts — internal lockout counter (select:false, but tested)
+  //   • lockUntil          — internal lockout timestamp (select:false, but tested)
+  //   • __v                — Mongoose internal version key
+  //
+  // Tests marked [FAIL-EXPECTED] are currently FAILING because the endpoint
+  // leaks at least one of the above fields.
+  // Tests marked [PASS-EXPECTED] are already safe and serve as regression guards.
+  // ===========================================================================
+
+  // Helper — fields that must never appear in any user object returned by the API
+  const SENSITIVE_FIELDS = [
+    'password',
+    'googleId',
+    'failedLoginAttempts',
+    'lockUntil',
+    '__v',
+  ];
+
+  // Helper — assert none of the sensitive fields are present on an object
+  function assertNoSensitiveFields(obj, context = '') {
+    SENSITIVE_FIELDS.forEach((field) => {
+      expect(obj).not.toHaveProperty(
+        field,
+        `[A02] Response${context ? ' (' + context + ')' : ''} must not expose "${field}"`
+      );
+    });
+  }
+
+  // -------------------------------------------------------------------------
+  // Suite A — GET /api/users/profile
+  // -------------------------------------------------------------------------
+  describe('[SECURITY A02] GET /api/users/profile — sensitive field exposure', () => {
+    const USER_EMAIL    = 'profile-sec@example.com';
+    const USER_PASSWORD = 'Profile_Pass1!';
+    let authToken;
+
+    beforeEach(async () => {
+      // 1. Register via API to get a proper hashed password
+      await request(app)
+        .post('/api/users/register')
+        .send({ name: 'Profile Sec User', email: USER_EMAIL, password: USER_PASSWORD });
+
+      // 2. Seed googleId directly in MongoDB so it is definitely present on the document
+      await User.updateOne(
+        { email: USER_EMAIL },
+        { googleId: 'google-oauth-uid-profile-test-12345' }
+      );
+
+      // 3. Authenticate to get a JWT
+      const loginRes = await request(app)
+        .post('/api/users/login')
+        .send({ email: USER_EMAIL, password: USER_PASSWORD });
+      authToken = loginRes.body.data.token;
+    });
+
+    it(
+      '[FAIL-EXPECTED] profile response must NOT expose googleId',
+      async () => {
+        const res = await request(app)
+          .get('/api/users/profile')
+          .set('Authorization', `Bearer ${authToken}`);
+
+        expect(res.status).toBe(200);
+        // Currently FAILS: getUserProfile() explicitly returns googleId in its
+        // return object → userService.js line 124.
+        expect(res.body.data).not.toHaveProperty('googleId');
+      }
+    );
+
+    it(
+      '[PASS-EXPECTED] profile response must NOT expose password',
+      async () => {
+        const res = await request(app)
+          .get('/api/users/profile')
+          .set('Authorization', `Bearer ${authToken}`);
+
+        expect(res.status).toBe(200);
+        // password is select:false on the schema — should already be safe
+        expect(res.body.data).not.toHaveProperty('password');
+      }
+    );
+
+    it(
+      '[PASS-EXPECTED] profile response must NOT expose failedLoginAttempts',
+      async () => {
+        const res = await request(app)
+          .get('/api/users/profile')
+          .set('Authorization', `Bearer ${authToken}`);
+
+        expect(res.status).toBe(200);
+        // failedLoginAttempts is select:false — safe, but guard against regression
+        expect(res.body.data).not.toHaveProperty('failedLoginAttempts');
+      }
+    );
+
+    it(
+      '[PASS-EXPECTED] profile response must NOT expose lockUntil',
+      async () => {
+        const res = await request(app)
+          .get('/api/users/profile')
+          .set('Authorization', `Bearer ${authToken}`);
+
+        expect(res.status).toBe(200);
+        // lockUntil is select:false — safe, but guard against regression
+        expect(res.body.data).not.toHaveProperty('lockUntil');
+      }
+    );
+
+    it(
+      '[PASS-EXPECTED] profile response must NOT expose __v',
+      async () => {
+        const res = await request(app)
+          .get('/api/users/profile')
+          .set('Authorization', `Bearer ${authToken}`);
+
+        expect(res.status).toBe(200);
+        // getUserProfile returns a plain object — __v is not included explicitly
+        expect(res.body.data).not.toHaveProperty('__v');
+      }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // Suite B -- GET /api/users/search
+  // -------------------------------------------------------------------------
+  describe('[SECURITY A02] GET /api/users/search -- sensitive field exposure', () => {
+    // AUTH user: only used to get a JWT; never the target of field checks
+    const AUTH_EMAIL    = 'search-auth@example.com';
+    const AUTH_PASSWORD = 'SearchAuth_Pass1!';
+
+    // TARGET user: the specific user whose googleId we seed and look for in the response
+    const TARGET_EMAIL     = 'search-target@example.com';
+    const TARGET_NAME      = 'SearchTargetUser';
+    const TARGET_GOOGLE_ID = 'google-search-leak-test';
+
+    let authToken;
+
+    beforeEach(async () => {
+      // 1. Create the authenticating user (no googleId needed)
+      await request(app)
+        .post('/api/users/register')
+        .send({ name: 'Search Auth User', email: AUTH_EMAIL, password: AUTH_PASSWORD });
+
+      // 2. Create the target user with a unique name and email
+      await request(app)
+        .post('/api/users/register')
+        .send({ name: TARGET_NAME, email: TARGET_EMAIL, password: 'TargetPass_1!' });
+
+      // 3. Seed googleId DIRECTLY into MongoDB on the target user
+      await User.updateOne({ email: TARGET_EMAIL }, { googleId: TARGET_GOOGLE_ID });
+
+      // 4. Authenticate as the auth user to get a JWT
+      const loginRes = await request(app)
+        .post('/api/users/login')
+        .send({ email: AUTH_EMAIL, password: AUTH_PASSWORD });
+      authToken = loginRes.body.data.token;
+    });
+
+    it(
+      '[DIAGNOSTIC] should confirm target user has googleId in the DB before checking response',
+      async () => {
+        const dbUser = await User.findOne({ email: TARGET_EMAIL }).select('+googleId');
+        expect(dbUser).not.toBeNull();
+        expect(dbUser.googleId).toBe(TARGET_GOOGLE_ID);
+      }
+    );
+
+    it(
+      '[FAIL-EXPECTED] /search target object must NOT expose googleId',
+      async () => {
+        // Pre-condition: googleId must be in the DB
+        const dbUser = await User.findOne({ email: TARGET_EMAIL }).select('+googleId');
+        expect(dbUser.googleId).toBe(TARGET_GOOGLE_ID);
+
+        // Call endpoint filtered to the target name
+        const res = await request(app)
+          .get('/api/users/search')
+          .set('Authorization', `Bearer ${authToken}`)
+          .query({ q: TARGET_NAME });
+
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body.users)).toBe(true);
+        expect(res.body.users.length).toBeGreaterThan(0);
+
+        // Isolate the SPECIFIC target object by exact email
+        const targetObj = res.body.users.find((u) => u.email === TARGET_EMAIL);
+        expect(targetObj).toBeDefined();
+
+        // Diagnostic: print the exact serialized object so failures are clear
+        console.log(
+          '[A02 DIAGNOSTIC] /search target response object:',
+          JSON.stringify(targetObj, null, 2)
+        );
+
+        // Assert: googleId must NOT be present on the target object
+        // EXPECTED TO FAIL: getAllUsers() -> User.find({}) returns raw Mongoose
+        // documents; googleId is not select:false, so it should appear here.
+        expect(targetObj).not.toHaveProperty('googleId');
+      }
+    );
+
+    it(
+      '[FAIL-EXPECTED] /search target object must NOT expose __v',
+      async () => {
+        const res = await request(app)
+          .get('/api/users/search')
+          .set('Authorization', `Bearer ${authToken}`)
+          .query({ q: TARGET_NAME });
+
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body.users)).toBe(true);
+        expect(res.body.users.length).toBeGreaterThan(0);
+
+        const targetObj = res.body.users.find((u) => u.email === TARGET_EMAIL);
+        expect(targetObj).toBeDefined();
+
+        console.log(
+          '[A02 DIAGNOSTIC] /search target (for __v check):',
+          JSON.stringify(targetObj, null, 2)
+        );
+
+        // Assert: Mongoose version key __v must NOT appear
+        // EXPECTED TO FAIL: User.find({}) includes __v by default.
+        expect(targetObj).not.toHaveProperty('__v');
+      }
+    );
+
+    it(
+      '[PASS-EXPECTED] /search target object must NOT expose password',
+      async () => {
+        const res = await request(app)
+          .get('/api/users/search')
+          .set('Authorization', `Bearer ${authToken}`)
+          .query({ q: TARGET_NAME });
+
+        expect(res.status).toBe(200);
+        const targetObj = res.body.users.find((u) => u.email === TARGET_EMAIL);
+        expect(targetObj).toBeDefined();
+        // password is select:false -- safe even via raw find({})
+        expect(targetObj).not.toHaveProperty('password');
+      }
+    );
+
+    it(
+      '[PASS-EXPECTED] /search target object must NOT expose failedLoginAttempts',
+      async () => {
+        const res = await request(app)
+          .get('/api/users/search')
+          .set('Authorization', `Bearer ${authToken}`)
+          .query({ q: TARGET_NAME });
+
+        expect(res.status).toBe(200);
+        const targetObj = res.body.users.find((u) => u.email === TARGET_EMAIL);
+        expect(targetObj).toBeDefined();
+        // select:false -- regression guard
+        expect(targetObj).not.toHaveProperty('failedLoginAttempts');
+      }
+    );
+
+    it(
+      '[PASS-EXPECTED] /search target object must NOT expose lockUntil',
+      async () => {
+        const res = await request(app)
+          .get('/api/users/search')
+          .set('Authorization', `Bearer ${authToken}`)
+          .query({ q: TARGET_NAME });
+
+        expect(res.status).toBe(200);
+        const targetObj = res.body.users.find((u) => u.email === TARGET_EMAIL);
+        expect(targetObj).toBeDefined();
+        // select:false -- regression guard
+        expect(targetObj).not.toHaveProperty('lockUntil');
+      }
+    );
+  });
+
+  // -------------------------------------------------------------------------
+  // Suite C -- GET /api/users/ (Admin-only)
+  // -------------------------------------------------------------------------
+  describe('[SECURITY A02] GET /api/users/ (Admin) -- sensitive field exposure', () => {
+    const ADMIN_EMAIL      = 'admin-sec@example.com';
+    const ADMIN_PASSWORD   = 'Admin_Sec_Pass1!';
+
+    // TARGET: a separate regular user we seed with googleId
+    const TARGET_EMAIL     = 'admin-list-target@example.com';
+    const TARGET_GOOGLE_ID = 'google-admin-list-leak-test';
+
+    let adminToken;
+
+    beforeEach(async () => {
+      // 1. Register Admin via API (avoids double-hash bug from manual bcrypt)
+      await request(app)
+        .post('/api/users/register')
+        .send({ name: 'Security Admin', email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
+
+      // 2. Elevate role to Admin in the DB
+      await User.updateOne({ email: ADMIN_EMAIL }, { role: 'Admin' });
+
+      // 3. Register a SEPARATE target user
+      await request(app)
+        .post('/api/users/register')
+        .send({ name: 'AdminList Target User', email: TARGET_EMAIL, password: 'TargetList_1!' });
+
+      // 4. Seed googleId on the target user
+      await User.updateOne({ email: TARGET_EMAIL }, { googleId: TARGET_GOOGLE_ID });
+
+      // 5. Authenticate as Admin
+      const loginRes = await request(app)
+        .post('/api/users/login')
+        .send({ email: ADMIN_EMAIL, password: ADMIN_PASSWORD });
+      adminToken = loginRes.body.data.token;
+    });
+
+    it(
+      '[DIAGNOSTIC] should confirm target user has googleId in DB before checking response',
+      async () => {
+        const dbTarget = await User.findOne({ email: TARGET_EMAIL }).select('+googleId');
+        expect(dbTarget).not.toBeNull();
+        expect(dbTarget.googleId).toBe(TARGET_GOOGLE_ID);
+      }
+    );
+
+    it(
+      '[FAIL-EXPECTED] admin list target object must NOT expose googleId',
+      async () => {
+        // DB pre-condition
+        const dbTarget = await User.findOne({ email: TARGET_EMAIL }).select('+googleId');
+        expect(dbTarget.googleId).toBe(TARGET_GOOGLE_ID);
+
+        const res = await request(app)
+          .get('/api/users/')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body.data)).toBe(true);
+        expect(res.body.data.length).toBeGreaterThanOrEqual(2); // admin + target
+
+        // Isolate target by exact email
+        const targetObj = res.body.data.find((u) => u.email === TARGET_EMAIL);
+        expect(targetObj).toBeDefined();
+
+        // Diagnostic: show the exact serialized object
+        console.log(
+          '[A02 DIAGNOSTIC] GET /api/users/ target response object:',
+          JSON.stringify(targetObj, null, 2)
+        );
+
+        // Assert: googleId must NOT appear
+        // EXPECTED TO FAIL: getAllUsers() -> User.find({}) returns raw docs;
+        // googleId is not select:false, so it should be serialized.
+        expect(targetObj).not.toHaveProperty('googleId');
+      }
+    );
+
+    it(
+      '[FAIL-EXPECTED] admin list target object must NOT expose __v',
+      async () => {
+        const res = await request(app)
+          .get('/api/users/')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(Array.isArray(res.body.data)).toBe(true);
+        expect(res.body.data.length).toBeGreaterThanOrEqual(2);
+
+        const targetObj = res.body.data.find((u) => u.email === TARGET_EMAIL);
+        expect(targetObj).toBeDefined();
+
+        console.log(
+          '[A02 DIAGNOSTIC] GET /api/users/ target (for __v check):',
+          JSON.stringify(targetObj, null, 2)
+        );
+
+        // Assert: Mongoose version key __v must NOT appear
+        // EXPECTED TO FAIL: User.find({}) includes __v by default.
+        expect(targetObj).not.toHaveProperty('__v');
+      }
+    );
+
+    it(
+      '[PASS-EXPECTED] admin list target object must NOT expose password',
+      async () => {
+        const res = await request(app)
+          .get('/api/users/')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        const targetObj = res.body.data.find((u) => u.email === TARGET_EMAIL);
+        expect(targetObj).toBeDefined();
+        // password is select:false -- safe via find({})
+        expect(targetObj).not.toHaveProperty('password');
+      }
+    );
+
+    it(
+      '[PASS-EXPECTED] admin list target object must NOT expose failedLoginAttempts',
+      async () => {
+        const res = await request(app)
+          .get('/api/users/')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        const targetObj = res.body.data.find((u) => u.email === TARGET_EMAIL);
+        expect(targetObj).toBeDefined();
+        // select:false -- regression guard
+        expect(targetObj).not.toHaveProperty('failedLoginAttempts');
+      }
+    );
+
+    it(
+      '[PASS-EXPECTED] admin list target object must NOT expose lockUntil',
+      async () => {
+        const res = await request(app)
+          .get('/api/users/')
+          .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        const targetObj = res.body.data.find((u) => u.email === TARGET_EMAIL);
+        expect(targetObj).toBeDefined();
+        // select:false -- regression guard
+        expect(targetObj).not.toHaveProperty('lockUntil');
+      }
+    );
+  });
 });

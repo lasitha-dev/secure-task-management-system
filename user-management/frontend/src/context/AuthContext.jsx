@@ -38,6 +38,7 @@ export function AuthProvider({ children }) {
     return data.data;
   };
 
+  // Legacy GIS ID-token flow — kept for backward compatibility, no longer used by LoginPage.
   const googleLogin = async (idToken) => {
     const { data } = await API.post('/google', { idToken });
     localStorage.setItem('token', data.data.token);
@@ -45,6 +46,22 @@ export function AuthProvider({ children }) {
     setToken(data.data.token);
     setUser(data.data);
     return data.data;
+  };
+
+  /**
+   * Phase 4B — Authorization Code flow exchange.
+   * Consumes the single-use opaque code returned by the backend OAuth callback.
+   * Backend response shape: { success: true, data: { token, user } }
+   * The exchange code is never stored; only the resulting token/user are persisted.
+   */
+  const completeGoogleOAuth = async (code) => {
+    const { data } = await API.post('/auth/google/exchange', { code });
+    const { token: oauthToken, user: oauthUser } = data.data;
+    localStorage.setItem('token', oauthToken);
+    localStorage.setItem('user', JSON.stringify(oauthUser));
+    setToken(oauthToken);
+    setUser(oauthUser);
+    return oauthUser;
   };
 
   const logout = () => {
@@ -58,7 +75,7 @@ export function AuthProvider({ children }) {
   const isAdmin = user?.role === 'Admin';
 
   return (
-    <AuthContext.Provider value={{ user, token, login, register, googleLogin, logout, isAuthenticated, isAdmin, loading }}>
+    <AuthContext.Provider value={{ user, token, login, register, googleLogin, completeGoogleOAuth, logout, isAuthenticated, isAdmin, loading }}>
       {children}
     </AuthContext.Provider>
   );

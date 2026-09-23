@@ -285,6 +285,64 @@ const consumeOAuthExchangeTicket = async (code) => {
   };
 };
 
+// ---- Cross-App Handoff Tickets -----------------------------------------------
+// Allows a logged-in user-management frontend to securely hand off their JWT
+// to another TaskMaster frontend (e.g. task-management) without placing the JWT
+// in the URL.
+//
+// Security properties:
+//   - Cryptographically random 32-byte hex code (64 chars)
+//   - 60-second TTL
+//   - Single-use: deleted immediately on first read
+//   - Never exposed in URL; only the opaque code travels via ?handoff=
+//   - Requires the requesting user to be authenticated (enforced by route middleware)
+//
+// NOTE: In-memory Map is used for single-instance/development architecture.
+// A production multi-instance deployment MUST replace this with a shared
+// TTL store such as Redis.
+const handoffTickets = new Map();
+const HANDOFF_TTL_MS = 60 * 1000; // 60 seconds
+
+const createHandoffTicket = (token) => {
+  if (!token || typeof token !== 'string') {
+    const error = new Error('Token is required to create a handoff ticket');
+    error.statusCode = 400;
+    throw error;
+  }
+  const code = crypto.randomBytes(32).toString('hex');
+  handoffTickets.set(code, {
+    token,
+    expiresAt: Date.now() + HANDOFF_TTL_MS,
+  });
+  return code;
+};
+
+const consumeHandoffTicket = (code) => {
+  if (!code || typeof code !== 'string') {
+    const error = new Error('Handoff code is required');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const ticket = handoffTickets.get(code);
+  if (!ticket) {
+    const error = new Error('Invalid or expired handoff code');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Burn on read — single-use guarantee
+  handoffTickets.delete(code);
+
+  if (Date.now() > ticket.expiresAt) {
+    const error = new Error('Handoff code has expired');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return { token: ticket.token };
+};
+
 module.exports = {
   registerUser,
   loginUser,
@@ -295,4 +353,6 @@ module.exports = {
   googleAuth,
   createOAuthExchangeTicket,
   consumeOAuthExchangeTicket,
+  createHandoffTicket,
+  consumeHandoffTicket,
 };

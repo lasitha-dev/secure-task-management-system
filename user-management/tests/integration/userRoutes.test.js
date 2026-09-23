@@ -1580,3 +1580,215 @@ describe('User API Routes', () => {
 });
 
 
+// ─── Cross-App Handoff Ticket Security Tests ──────────────────────────────────
+describe('[HANDOFF] Cross-App Handoff Tickets', () => {
+  const userService = require('../../src/services/userService');
+
+  /** Helper: register a user and return { token, user } */
+  async function createAuthenticatedUser(overrides = {}) {
+    const payload = {
+      name: overrides.name || 'Handoff User',
+      email: overrides.email || `handoff-${Date.now()}@example.com`,
+      password: 'password123',
+    };
+    const res = await request(app)
+      .post('/api/users/register')
+      .send(payload);
+    expect(res.status).toBe(201);
+    return { token: res.body.data.token, user: res.body.data };
+  }
+
+  // 1. Authenticated user can issue a handoff code
+  it('POST /api/users/auth/handoff — authenticated user receives a handoff code', async () => {
+    const { token } = await createAuthenticatedUser({ email: 'handoff1@example.com' });
+
+    const res = await request(app)
+      .post('/api/users/auth/handoff')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data).toHaveProperty('code');
+    expect(typeof res.body.data.code).toBe('string');
+    expect(res.body.data.code.length).toBe(64); // 32 bytes → 64 hex chars
+  });
+
+  // 2. Unauthenticated user cannot issue a handoff code
+  it('POST /api/users/auth/handoff — unauthenticated request is rejected (401)', async () => {
+    const res = await request(app)
+      .post('/api/users/auth/handoff');
+
+    expect(res.status).toBe(401);
+  });
+
+  // 3. Valid handoff code exchanges successfully
+  it('POST /api/users/auth/handoff/exchange — valid code returns a JWT', async () => {
+    const { token } = await createAuthenticatedUser({ email: 'handoff3@example.com' });
+
+    // Issue a handoff code
+    const issueRes = await request(app)
+      .post('/api/users/auth/handoff')
+      .set('Authorization', `Bearer ${token}`);
+    const { code } = issueRes.body.data;
+
+    // Exchange the code (public — no Authorization header)
+    const exchangeRes = await request(app)
+      .post('/api/users/auth/handoff/exchange')
+      .send({ code });
+
+    expect(exchangeRes.status).toBe(200);
+    expect(exchangeRes.body.success).toBe(true);
+    expect(exchangeRes.body.data).toHaveProperty('token');
+    expect(typeof exchangeRes.body.data.token).toBe('string');
+  });
+
+  // 4. Same handoff code cannot be exchanged twice (single-use)
+  it('POST /api/users/auth/handoff/exchange — replay of same code is rejected (400)', async () => {
+    const { token } = await createAuthenticatedUser({ email: 'handoff4@example.com' });
+
+    const issueRes = await request(app)
+      .post('/api/users/auth/handoff')
+      .set('Authorization', `Bearer ${token}`);
+    const { code } = issueRes.body.data;
+
+    // First exchange: succeeds
+    const res1 = await request(app)
+      .post('/api/users/auth/handoff/exchange')
+      .send({ code });
+    expect(res1.status).toBe(200);
+
+    // Second exchange: MUST fail
+    const res2 = await request(app)
+      .post('/api/users/auth/handoff/exchange')
+      .send({ code });
+    expect(res2.status).toBe(400);
+    expect(res2.body.success).toBe(false);
+    expect(res2.body.message).toMatch(/invalid|expired/i);
+  });
+
+  // 5. Invalid (unknown) handoff code is rejected
+  it('POST /api/users/auth/handoff/exchange — unknown code is rejected (400)', async () => {
+    const res = await request(app)
+      .post('/api/users/auth/handoff/exchange')
+      .send({ code: 'a'.repeat(64) });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toMatch(/invalid|expired/i);
+  });
+
+  // 6. Expired handoff code is rejected
+  it('POST /api/users/auth/handoff/exchange — expired code is rejected (400)', async () => {
+    // Directly create a handoff ticket via service to control timing
+    const mockToken = jwt.sign(
+      { id: 'test-id', role: 'User', name: 'Expiry Test', email: 'expiry@example.com' },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    const code = userService.createHandoffTicket(mockToken);
+
+    // Fast-forward time past the 60-second TTL
+    const origDateNow = Date.now;
+    try {
+      Date.now = () => origDateNow() + 65 * 1000; // 65 seconds later
+
+      const res = await request(app)
+        .post('/api/users/auth/handoff/exchange')
+        .send({ code });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toMatch(/expired/i);
+    } finally {
+      Date.now = origDateNow;
+    }
+  });
+
+  // 7. Exchange endpoint works without an existing JWT (public route)
+  it('POST /api/users/auth/handoff/exchange — does not require Authorization header', async () => {
+    const { token } = await createAuthenticatedUser({ email: 'handoff7@example.com' });
+
+    const issueRes = await request(app)
+      .post('/api/users/auth/handoff')
+      .set('Authorization', `Bearer ${token}`);
+    const { code } = issueRes.body.data;
+
+    // Exchange WITHOUT any Authorization header — must still succeed
+    const exchangeRes = await request(app)
+      .post('/api/users/auth/handoff/exchange')
+      .send({ code });
+    // No .set('Authorization', ...) — intentionally omitted
+
+    expect(exchangeRes.status).toBe(200);
+    expect(exchangeRes.body.success).toBe(true);
+    expect(exchangeRes.body.data).toHaveProperty('token');
+  });
+
+  // 8. Handoff code is opaque — does not equal or contain the JWT
+  it('handoff code is opaque and does not contain the JWT', async () => {
+    const { token } = await createAuthenticatedUser({ email: 'handoff8@example.com' });
+
+    const issueRes = await request(app)
+      .post('/api/users/auth/handoff')
+      .set('Authorization', `Bearer ${token}`);
+    const { code } = issueRes.body.data;
+
+    // The code must not be the JWT itself
+    expect(code).not.toEqual(token);
+    // The code must not contain the JWT as a substring
+    expect(code).not.toContain(token);
+    // The JWT must not contain the code as a substring
+    expect(token).not.toContain(code);
+    // The code should be hex-only (cryptographically random)
+    expect(code).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  // 9. Handoff ticket expires around the configured TTL (60s)
+  it('handoff ticket is still valid just before TTL expires', async () => {
+    const mockToken = jwt.sign(
+      { id: 'ttl-test', role: 'User', name: 'TTL Test', email: 'ttl@example.com' },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    const code = userService.createHandoffTicket(mockToken);
+
+    // Fast-forward to just before TTL (55 seconds — within the 60s window)
+    const origDateNow = Date.now;
+    try {
+      Date.now = () => origDateNow() + 55 * 1000;
+
+      const res = await request(app)
+        .post('/api/users/auth/handoff/exchange')
+        .send({ code });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+    } finally {
+      Date.now = origDateNow;
+    }
+  });
+
+  // 10. Production response does not expose internal ticket storage
+  it('exchange response shape does not leak internal ticket metadata', async () => {
+    const { token } = await createAuthenticatedUser({ email: 'handoff10@example.com' });
+
+    const issueRes = await request(app)
+      .post('/api/users/auth/handoff')
+      .set('Authorization', `Bearer ${token}`);
+    const { code } = issueRes.body.data;
+
+    const exchangeRes = await request(app)
+      .post('/api/users/auth/handoff/exchange')
+      .send({ code });
+
+    expect(exchangeRes.status).toBe(200);
+    // Response must only contain token
+    expect(Object.keys(exchangeRes.body.data)).toEqual(['token']);
+    // Response must NOT contain internal ticket fields
+    expect(exchangeRes.body.data).not.toHaveProperty('expiresAt');
+    expect(exchangeRes.body.data).not.toHaveProperty('createdAt');
+    expect(exchangeRes.body.data).not.toHaveProperty('code');
+  });
+});
+
+

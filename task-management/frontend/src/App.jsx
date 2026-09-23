@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
 import { buildAppUrl } from '@taskmaster/shared-ui/appLinks'
 import { AppEmptyState, AppPageHeader, AppSectionCard, AppStatCard } from '@taskmaster/shared-ui/components'
@@ -1117,17 +1117,53 @@ export default function App() {
   const [isReady, setIsReady] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
 
-  // Check for token in URL hash FIRST (from cross-port redirect)
+  // StrictMode guard: React StrictMode double-mounts in dev, which would
+  // exhaust the single-use handoff ticket on the second invocation.
+  const hasExchangedRef = useRef(false)
+
+  // Exchange a single-use handoff code for a JWT (secure cross-app auth).
+  // The code arrives as ?handoff=<hex> — the JWT never appears in the URL.
+  // Legacy JWT URL handoff support has been deliberately removed.
   useEffect(() => {
-    const hash = globalThis.location.hash;
-    if (hash?.startsWith('#token=')) {
-      const token = hash.substring(7); // Remove '#token='
-      localStorage.setItem('token', token);
-      // Clean up URL — preserve the original pathname so React Router matches correctly
-      globalThis.history.replaceState(null, '', globalThis.location.pathname + globalThis.location.search);
+    if (hasExchangedRef.current) { setIsReady(true); return; }
+    hasExchangedRef.current = true;
+
+    async function processHandoff() {
+      const params = new URLSearchParams(globalThis.location.search);
+      const handoffCode = params.get('handoff');
+
+      if (handoffCode) {
+        // 1. Immediately remove the handoff code from the visible URL
+        params.delete('handoff');
+        const cleanSearch = params.toString();
+        const cleanUrl = globalThis.location.pathname + (cleanSearch ? `?${cleanSearch}` : '');
+        globalThis.history.replaceState(null, '', cleanUrl);
+
+        // 2. Exchange the single-use code for a JWT
+        try {
+          const apiBase = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+          const response = await fetch(`${apiBase}/api/users/auth/handoff/exchange`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: handoffCode }),
+          });
+
+          if (response.ok) {
+            const body = await response.json();
+            const token = body?.data?.token;
+            if (token) {
+              localStorage.setItem('token', token);
+            }
+          }
+        } catch (e) {
+          // Exchange failed — user will see the login redirect
+        }
+      }
+
+      setIsReady(true);
     }
-    // Mark as ready after token processing
-    setIsReady(true)
+
+    processHandoff();
   }, []);
 
   // Get current user from JWT token

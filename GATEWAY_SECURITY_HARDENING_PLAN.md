@@ -274,14 +274,14 @@ This document outlines the phased engineering roadmap for remediating critical s
   ```
 - **Test Results:** 11 test suites passed, 82 total tests passed with zero failures. Statement coverage is 97.58%.
 
-#### Subphase 6.3: Verification Checklist & Audit Trail Deliverable
-- Complete verification of all items in `.agents/rules/rules.md`:
-  - [x] No hardcoded URLs, ports, or origins in source files.
-  - [x] New modules follow `camelCase.js` convention and test suites follow `.test.js`.
-  - [x] All new dependencies (`helmet`) tracked in `package.json`.
-  - [x] Full `npm test` suite executes with 100% green assertions.
-  - [x] Downstream microservice proxy rules in `proxyConfig.js` remain fully functional.
-  - [x] Documented evidence formatted for inclusion in `SE4030_Assignment_Report.pdf` and YouTube demonstration video.
+#### Subphase 6.3: Verification Checklist & Audit Trail Deliverable [COMPLETED]
+- **Verification of Output Checklist (`.agents/rules/rules.md`, Section 5):**
+  - [x] **No hardcoded URLs, ports, or origins in source files:** Confirmed via static analysis; all runtime settings originate in `src/config/env.js` with fail-secure defaults.
+  - [x] **Naming Conventions:** All source files follow `camelCase.js` (`env.js`, `securityHeaders.js`, `corsConfig.js`, `proxyConfig.js`, `rateLimiter.js`, `logger.js`) and all test suites follow `<name>.test.js`.
+  - [x] **Dependency Tracking:** `helmet` (`^8.3.0`) tracked in `package.json` and locked in `package-lock.json` for Docker `npm ci` compatibility.
+  - [x] **Full Automated Test Suite Execution:** `npm test` executes with 100% green assertions (11 suites, 82 tests, 0 failures, 97.58% statement coverage).
+  - [x] **Downstream Reverse Proxy Integrity:** Downstream routing table in `proxyConfig.js` and OAuth 2.0 / OIDC pass-through fully verified.
+  - [x] **Audit Trail Deliverable:** Compiled comprehensive audit report in [api-gateway/GATEWAY_SECURITY_AUDIT_REPORT.md](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/GATEWAY_SECURITY_AUDIT_REPORT.md) for Member 1 deliverables (`SE4030_Assignment_Report.pdf` and video demonstration).
 
 ---
 
@@ -289,13 +289,24 @@ This document outlines the phased engineering roadmap for remediating critical s
 
 | File Path | Action | Description |
 | :--- | :---: | :--- |
-| `api-gateway/package.json` | **MODIFY** | Add `helmet` dependency. |
+| `api-gateway/package.json` | **MODIFY** | Add `helmet` dependency (`^8.3.0`). |
+| `api-gateway/package-lock.json` | **MODIFY** | Synchronized lockfile for reproducible Docker builds (`RUN npm ci`). |
 | `api-gateway/.env.example` | **NEW** | Template configuration for gateway environment variables. |
-| `api-gateway/src/config/securityHeaders.js` | **NEW** | Modular Helmet and security response headers configuration. |
-| `api-gateway/src/config/corsConfig.js` | **NEW** | Modular dynamic CORS whitelist and preflight options. |
-| `api-gateway/src/server.js` | **MODIFY** | Reorder pipeline (Helmet -> CORS -> Logger/RateLimit -> Proxy), wire modular configs. |
-| `api-gateway/src/middleware/rateLimiter.js` | **MODIFY** | Parameterize thresholds from env, add standard rate-limit headers. |
-| `api-gateway/tests/unit/securityHeaders.test.js` | **NEW** | Unit test suite asserting all 6 OWASP defensive headers. |
-| `api-gateway/tests/unit/corsPolicy.test.js` | **NEW** | Unit test suite asserting authorized, unauthorized, wildcard-free, and preflight CORS flows. |
-| `api-gateway/tests/integration/server.test.js` | **MODIFY** | Integration test asserting live headers and health endpoint behavior. |
-| `api-gateway/tests/integration/oauthProxy.test.js` | **NEW** | Integration test asserting OAuth2 redirect and parameter passthrough. |
+| `api-gateway/src/config/env.js` | **NEW** | Modular environment variable parser with fail-secure defaults. |
+| `api-gateway/src/config/securityHeaders.js` | **NEW** | Modular Helmet defensive headers and Permissions-Policy configuration. |
+| `api-gateway/src/config/corsConfig.js` | **NEW** | Modular dynamic CORS whitelist, credentials, and preflight configuration. |
+| `api-gateway/src/config/proxyConfig.js` | **MODIFY** | Decoupled downstream URLs via `env.js`, exported `resolveTarget`, `getProxyOptions`. |
+| `api-gateway/src/middleware/rateLimiter.js` | **MODIFY** | Parameterized thresholds via `env.js`, added standard RFC rate-limit headers. |
+| `api-gateway/src/server.js` | **MODIFY** | 4-stage pipeline (Helmet -> CORS -> Logger/RateLimiter -> Proxy), `trust proxy`. |
+| `api-gateway/zap-baseline.conf` | **NEW** | OWASP ZAP baseline scan configuration with fail-secure alert thresholds. |
+| `api-gateway/tests/unit/env.test.js` | **NEW** | Unit tests for environment parsing, origin filtering, and fallbacks. |
+| `api-gateway/tests/unit/securityHeadersConfig.test.js` | **NEW** | Unit tests for Helmet options, CSP directives, and Permissions-Policy. |
+| `api-gateway/tests/unit/securityHeaders.test.js` | **NEW** | Unit tests asserting all 6 OWASP defensive headers on live endpoints. |
+| `api-gateway/tests/unit/corsConfig.test.js` | **NEW** | Unit tests for CORS options, preflight cache, and origin validation function. |
+| `api-gateway/tests/unit/corsPolicy.test.js` | **NEW** | Unit tests asserting authorized, unauthorized, wildcard-free, and preflight flows. |
+| `api-gateway/tests/unit/proxyConfig.test.js` | **MODIFY** | Unit tests for route tables, `resolveTarget`, and `getProxyOptions` OAuth options. |
+| `api-gateway/tests/unit/rateLimiter.test.js` | **MODIFY** | Unit tests for rate-limit thresholds, headers, window resets, and IP resolution. |
+| `api-gateway/tests/integration/server.test.js` | **MODIFY** | Integration test suite expanded from 1 to 13 tests covering full pipeline. |
+| `api-gateway/tests/integration/oauthProxy.test.js` | **NEW** | Integration test suite verifying HTTP 302/307 redirects, query strings, cookies. |
+| `api-gateway/tests/integration/dastScanValidation.test.js` | **NEW** | Integration tests asserting compliance with OWASP ZAP rules 10020, 10021, 10038, 10049. |
+| `api-gateway/GATEWAY_SECURITY_AUDIT_REPORT.md` | **NEW** | Comprehensive DevSecOps audit report and compliance deliverable for Member 1. |

@@ -24,6 +24,12 @@ const NOTIFICATION_PRIORITIES = Object.freeze({
 const NOTIFICATION_TYPE_VALUES = Object.values(NOTIFICATION_TYPES);
 const NOTIFICATION_PRIORITY_VALUES = Object.values(NOTIFICATION_PRIORITIES);
 
+const PAGINATION = Object.freeze({
+    DEFAULT_PAGE: 1,
+    DEFAULT_LIMIT: 20,
+    MAX_LIMIT: 100,
+});
+
 const RESPONSE_MESSAGES = Object.freeze({
     NOTIFICATION_CREATED: 'Notification created successfully',
     NOTIFICATION_FETCHED: 'Notifications retrieved successfully',
@@ -42,5 +48,6 @@ module.exports = {
     NOTIFICATION_PRIORITIES,
     NOTIFICATION_TYPE_VALUES,
     NOTIFICATION_PRIORITY_VALUES,
+    PAGINATION,
     RESPONSE_MESSAGES,
 };

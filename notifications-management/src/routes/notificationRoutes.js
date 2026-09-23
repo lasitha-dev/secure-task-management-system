@@ -14,6 +14,7 @@ const controller = new NotificationController(service);
 // --- Validation Middleware ---------------------------------------------------
 const {
     validateCreateNotification,
+    validateGetNotifications,
     validateObjectId,
     validateMarkAllRead,
     validateUpdatePreferences,
@@ -27,7 +28,7 @@ router.post('/internal', protectInternalService, validateCreateNotification, con
 router.use(protect);
 
 // GET    /api/notifications              — List all (with filters & pagination)
-router.get('/', controller.getNotifications);
+router.get('/', validateGetNotifications, controller.getNotifications);
 
 // GET    /api/notifications/unread-count  — Get unread count for a recipient
 router.get('/unread-count', controller.getUnreadCount);

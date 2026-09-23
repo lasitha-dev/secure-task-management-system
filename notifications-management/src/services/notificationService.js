@@ -1,10 +1,31 @@
-const { RESPONSE_MESSAGES } = require('../utils/constants');
+const { PAGINATION, RESPONSE_MESSAGES } = require('../utils/constants');
 const { sendNotificationEmail } = require('./emailService');
 
 function createNotFoundError() {
     const error = new Error(RESPONSE_MESSAGES.NOTIFICATION_NOT_FOUND);
     error.statusCode = 404;
     return error;
+}
+
+/**
+ * Defensively clamp page/limit to safe bounds regardless of what the caller
+ * supplied. This is the last line of defense against an unbounded query
+ * (A04) even if route-level validation is bypassed or missing.
+ */
+function normalizePagination(page, limit) {
+    let safePage = parseInt(page, 10);
+    if (!Number.isInteger(safePage) || safePage < 1) {
+        safePage = PAGINATION.DEFAULT_PAGE;
+    }
+
+    let safeLimit = parseInt(limit, 10);
+    if (!Number.isInteger(safeLimit) || safeLimit < 1) {
+        safeLimit = PAGINATION.DEFAULT_LIMIT;
+    } else if (safeLimit > PAGINATION.MAX_LIMIT) {
+        safeLimit = PAGINATION.MAX_LIMIT;
+    }
+
+    return { page: safePage, limit: safeLimit };
 }
 
 /**
@@ -21,17 +42,18 @@ class NotificationService {
     /**
      * Retrieve notifications with optional filters and pagination.
      */
-    async getAllNotifications({ recipientId, type, isRead, priority, page = 1, limit = 20 }) {
+    async getAllNotifications({ recipientId, type, isRead, priority, page = PAGINATION.DEFAULT_PAGE, limit = PAGINATION.DEFAULT_LIMIT }) {
         const filter = {};
         if (recipientId) filter.recipientId = recipientId;
         if (type) filter.type = type;
         if (typeof isRead === 'boolean') filter.isRead = isRead;
         if (priority) filter.priority = priority;
 
-        const skip = (page - 1) * limit;
+        const { page: safePage, limit: safeLimit } = normalizePagination(page, limit);
+        const skip = (safePage - 1) * safeLimit;
 
         const [notifications, total] = await Promise.all([
-            this.Notification.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+            this.Notification.find(filter).sort({ createdAt: -1 }).skip(skip).limit(safeLimit).lean(),
             this.Notification.countDocuments(filter),
         ]);
 
@@ -39,9 +61,9 @@ class NotificationService {
             notifications,
             pagination: {
                 total,
-                page: Number(page),
-                limit: Number(limit),
-                pages: Math.ceil(total / limit),
+                page: safePage,
+                limit: safeLimit,
+                pages: Math.ceil(total / safeLimit),
             },
         };
     }

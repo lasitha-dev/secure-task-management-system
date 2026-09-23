@@ -1,21 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const reportsController = require('../controllers/reportsController');
-const { validateReportGeneration } = require('../middleware/validateRequest');
+const { validateReportGeneration, validatePagination } = require('../middleware/validateRequest');
 const { authMiddleware } = require('../middleware/authMiddleware');
+const reportGenerationLimiter = require('../middleware/reportGenerationLimiter');
 
 /**
- * GET /api/reports
- * Returns: all reports sorted by date (for Recent Reports table)
+ * GET /api/reports?page=&limit=
+ * Returns: paginated reports sorted by date (for Recent Reports table)
  */
-router.get('/', reportsController.getAllReports);
+router.get('/', validatePagination, reportsController.getAllReports);
 
 /**
- * GET /api/reports/my-reports
- * Returns: reports for current user only
+ * GET /api/reports/my-reports?page=&limit=
+ * Returns: paginated reports for current user only
  * Requires: JWT authentication
  */
-router.get('/my-reports', authMiddleware, reportsController.getMyReports);
+router.get('/my-reports', authMiddleware, validatePagination, reportsController.getMyReports);
 
 /**
  * GET /api/reports/:id
@@ -28,7 +29,7 @@ router.get('/:id', reportsController.getReportById);
  * Body: { title, authorName, period }
  * Creates report snapshot, saves to DB, returns report
  */
-router.post('/generate', validateReportGeneration, reportsController.generateReport);
+router.post('/generate', reportGenerationLimiter, validateReportGeneration, reportsController.generateReport);
 
 /**
  * DELETE /api/reports/:id

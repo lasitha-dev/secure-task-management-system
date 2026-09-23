@@ -1114,57 +1114,7 @@ function KanbanPage({ onNotificationChange }) {
 
 // ─── Root App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [isReady, setIsReady] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
-
-  // StrictMode guard: React StrictMode double-mounts in dev, which would
-  // exhaust the single-use handoff ticket on the second invocation.
-  const hasExchangedRef = useRef(false)
-
-  // Exchange a single-use handoff code for a JWT (secure cross-app auth).
-  // The code arrives as ?handoff=<hex> — the JWT never appears in the URL.
-  // Legacy JWT URL handoff support has been deliberately removed.
-  useEffect(() => {
-    if (hasExchangedRef.current) { setIsReady(true); return; }
-    hasExchangedRef.current = true;
-
-    async function processHandoff() {
-      const params = new URLSearchParams(globalThis.location.search);
-      const handoffCode = params.get('handoff');
-
-      if (handoffCode) {
-        // 1. Immediately remove the handoff code from the visible URL
-        params.delete('handoff');
-        const cleanSearch = params.toString();
-        const cleanUrl = globalThis.location.pathname + (cleanSearch ? `?${cleanSearch}` : '');
-        globalThis.history.replaceState(null, '', cleanUrl);
-
-        // 2. Exchange the single-use code for a JWT
-        try {
-          const apiBase = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
-          const response = await fetch(`${apiBase}/api/users/auth/handoff/exchange`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: handoffCode }),
-          });
-
-          if (response.ok) {
-            const body = await response.json();
-            const token = body?.data?.token;
-            if (token) {
-              localStorage.setItem('token', token);
-            }
-          }
-        } catch (e) {
-          // Exchange failed — user will see the login redirect
-        }
-      }
-
-      setIsReady(true);
-    }
-
-    processHandoff();
-  }, []);
 
   // Get current user from JWT token
   const currentUser = getCurrentUser()
@@ -1179,23 +1129,15 @@ export default function App() {
     }
   }
 
-  // Poll for unread count every 60 seconds once the app is ready and the user is authenticated
+  // Poll for unread count every 60 seconds once the user is authenticated
   useEffect(() => {
-    if (!isReady || !currentUser) return
+    if (!currentUser) return
     refreshUnreadCount()
     const timer = setInterval(refreshUnreadCount, 60_000)
     return () => clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, currentUser?.id])
+  }, [currentUser?.id])
 
-  // Wait for token processing before checking auth
-  if (!isReady) {
-    return (
-      <div className="dark min-h-screen bg-background-dark flex items-center justify-center">
-        <span className="material-symbols-outlined text-4xl text-blue-500 animate-spin">progress_activity</span>
-      </div>
-    )
-  }
 
   // Redirect to login if no user (after token processing)
   if (!currentUser) {

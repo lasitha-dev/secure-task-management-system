@@ -157,8 +157,10 @@ This document outlines the phased engineering roadmap for remediating critical s
 - **Unit Test Coverage:** Created [api-gateway/tests/unit/corsConfig.test.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/tests/unit/corsConfig.test.js) with 6 unit tests asserting whitelist validation, non-browser request allowance, unauthorized rejection, and options security.
 - **Test Results:** 8 test suites passed, 29 total tests passed with zero failures. Coverage increased to 85.43% statements.
 
-#### Subphase 3.2: Immediate Preflight Interception
-- Guarantee that `OPTIONS` requests matching configured endpoints terminate at the gateway level with `204 No Content` or `200 OK` and required CORS headers, without hitting downstream services or consuming backend resources.
+#### Subphase 3.2: Immediate Preflight Interception [COMPLETED]
+- **Gateway Boundary Termination:** Wired `app.use(cors(getCorsOptions()))` and `app.options('*', cors(getCorsOptions()))` in `api-gateway/src/server.js`.
+- **Preflight Isolation:** Verified that `OPTIONS` preflight requests terminate with HTTP `204 No Content`, `Content-Length: 0`, and required `Access-Control-Allow-*` headers without dispatching to downstream microservice proxies.
+- **Resource Protection:** Validated that permissible methods and headers are enumerated and cached for 24 hours (`maxAge: 86400`).
 
 #### Subphase 3.3: CORS Policy Test Suite
 - Create `api-gateway/tests/unit/corsPolicy.test.js`:

@@ -4,6 +4,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const { rateLimiter } = require('./middleware/rateLimiter');
 const { logger } = require('./middleware/logger');
 const { getSecurityHeadersMiddleware } = require('./config/securityHeaders');
+const { getCorsOptions } = require('./config/corsConfig');
 
 require('dotenv').config();
 
@@ -32,11 +33,10 @@ function createApp() {
     app.disable('x-powered-by');
     app.use(getSecurityHeadersMiddleware());
 
-    const corsOptions = {
-        origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',
-        credentials: true,
-    };
+    // 2. Origin authorization and preflight handling (CORS)
+    const corsOptions = getCorsOptions();
     app.use(cors(corsOptions));
+    app.options('*', cors(corsOptions));
     app.use(logger);
     app.use(rateLimiter);
 

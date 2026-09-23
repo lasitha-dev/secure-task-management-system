@@ -1,32 +1,34 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1790166449837" clover="3.2.0">
-  <project timestamp="1790166449837" name="All files">
-    <metrics statements="103" coveredstatements="88" conditionals="94" coveredconditionals="66" methods="22" coveredmethods="17" elements="219" coveredelements="171" complexity="0" loc="103" ncloc="103" packages="3" files="7" classes="7"/>
+<coverage generated="1790166739248" clover="3.2.0">
+  <project timestamp="1790166739248" name="All files">
+    <metrics statements="105" coveredstatements="90" conditionals="92" coveredconditionals="65" methods="22" coveredmethods="17" elements="219" coveredelements="172" complexity="0" loc="105" ncloc="105" packages="3" files="7" classes="7"/>
     <package name="src">
-      <metrics statements="36" coveredstatements="22" conditionals="31" coveredconditionals="6" methods="7" coveredmethods="2"/>
+      <metrics statements="38" coveredstatements="24" conditionals="29" coveredconditionals="5" methods="7" coveredmethods="2"/>
       <file name="server.js" path="C:\Users\lasit\OneDrive\Documents\IDEs\VS Code\secure-task-management-system\api-gateway\src\server.js">
-        <metrics statements="36" coveredstatements="22" conditionals="31" coveredconditionals="6" methods="7" coveredmethods="2"/>
+        <metrics statements="38" coveredstatements="24" conditionals="29" coveredconditionals="5" methods="7" coveredmethods="2"/>
         <line num="1" count="2" type="stmt"/>
         <line num="2" count="2" type="stmt"/>
         <line num="3" count="2" type="stmt"/>
         <line num="4" count="2" type="stmt"/>
         <line num="5" count="2" type="stmt"/>
         <line num="6" count="2" type="stmt"/>
-        <line num="8" count="2" type="stmt"/>
-        <line num="10" count="2" type="cond" truecount="2" falsecount="0"/>
-        <line num="13" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="7" count="2" type="stmt"/>
+        <line num="9" count="2" type="stmt"/>
+        <line num="11" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="14" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="16" count="0" type="cond" truecount="0" falsecount="4"/>
-        <line num="17" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="19" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="15" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="17" count="0" type="cond" truecount="0" falsecount="4"/>
+        <line num="18" count="0" type="cond" truecount="0" falsecount="2"/>
         <line num="20" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="22" count="0" type="cond" truecount="0" falsecount="5"/>
-        <line num="23" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="25" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="29" count="2" type="stmt"/>
-        <line num="32" count="2" type="stmt"/>
+        <line num="21" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="23" count="0" type="cond" truecount="0" falsecount="5"/>
+        <line num="24" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="26" count="0" type="cond" truecount="0" falsecount="2"/>
+        <line num="30" count="2" type="stmt"/>
         <line num="33" count="2" type="stmt"/>
-        <line num="35" count="2" type="stmt"/>
+        <line num="34" count="2" type="stmt"/>
+        <line num="37" count="2" type="stmt"/>
+        <line num="38" count="2" type="stmt"/>
         <line num="39" count="2" type="stmt"/>
         <line num="40" count="2" type="stmt"/>
         <line num="41" count="2" type="stmt"/>
@@ -48,23 +50,23 @@
       <metrics statements="44" coveredstatements="43" conditionals="57" coveredconditionals="54" methods="13" coveredmethods="13"/>
       <file name="corsConfig.js" path="C:\Users\lasit\OneDrive\Documents\IDEs\VS Code\secure-task-management-system\api-gateway\src\config\corsConfig.js">
         <metrics statements="17" coveredstatements="17" conditionals="10" coveredconditionals="9" methods="4" coveredmethods="4"/>
-        <line num="6" count="1" type="stmt"/>
-        <line num="8" count="1" type="stmt"/>
-        <line num="9" count="1" type="stmt"/>
-        <line num="16" count="1" type="stmt"/>
-        <line num="19" count="5" type="cond" truecount="4" falsecount="0"/>
-        <line num="20" count="3" type="stmt"/>
-        <line num="22" count="2" type="cond" truecount="1" falsecount="1"/>
-        <line num="26" count="2" type="stmt"/>
-        <line num="28" count="2" type="stmt"/>
-        <line num="30" count="3" type="cond" truecount="2" falsecount="0"/>
-        <line num="31" count="1" type="stmt"/>
+        <line num="6" count="3" type="stmt"/>
+        <line num="8" count="3" type="stmt"/>
+        <line num="9" count="3" type="stmt"/>
+        <line num="16" count="3" type="stmt"/>
+        <line num="19" count="13" type="cond" truecount="4" falsecount="0"/>
+        <line num="20" count="7" type="stmt"/>
+        <line num="22" count="6" type="cond" truecount="1" falsecount="1"/>
+        <line num="26" count="6" type="stmt"/>
+        <line num="28" count="6" type="stmt"/>
+        <line num="30" count="6" type="cond" truecount="2" falsecount="0"/>
+        <line num="31" count="4" type="stmt"/>
         <line num="35" count="2" type="cond" truecount="2" falsecount="0"/>
         <line num="36" count="1" type="stmt"/>
         <line num="40" count="1" type="stmt"/>
-        <line num="45" count="1" type="stmt"/>
-        <line num="47" count="1" type="stmt"/>
-        <line num="58" count="1" type="stmt"/>
+        <line num="45" count="5" type="stmt"/>
+        <line num="47" count="5" type="stmt"/>
+        <line num="58" count="3" type="stmt"/>
       </file>
       <file name="env.js" path="C:\Users\lasit\OneDrive\Documents\IDEs\VS Code\secure-task-management-system\api-gateway\src\config\env.js">
         <metrics statements="12" coveredstatements="12" conditionals="26" coveredconditionals="26" methods="5" coveredmethods="5"/>

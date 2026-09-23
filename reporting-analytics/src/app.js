@@ -13,6 +13,7 @@ const { syncTasksFromExternal } = require('./services/syncService');
 require('dotenv').config();
 
 const app = express();
+app.disable('x-powered-by');
 const PORT = process.env.PORT || 5004;
 
 // Connect to Database

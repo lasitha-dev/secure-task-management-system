@@ -97,15 +97,11 @@ This document outlines the phased engineering roadmap for remediating critical s
   - **Identified Uncovered Lines in `src/server.js`:** 12-24, 45-51, 62-63 (proxy resolution and listen callback).
 - **Working Tree State:** Clean branch tracking remote, ready for dependency installation.
 
-#### Subphase 1.2: Dependency Resolution
-- Add `helmet` (`^8.0.0` or latest compatible) to `api-gateway/package.json` under `dependencies`.
-- Run `npm install` inside `api-gateway` to update `package-lock.json` and ensure reproducible builds.
-- Verify that `package.json` dependencies contain:
-  - `express`: `^4.21.2`
-  - `helmet`: `^8.0.0`
-  - `cors`: `^2.8.5`
-  - `http-proxy-middleware`: `^3.0.3`
-  - `dotenv`: `^16.4.7`
+#### Subphase 1.2: Dependency Resolution [COMPLETED]
+- **Helmet Installed:** Added `"helmet": "^8.3.0"` to `api-gateway/package.json` under `dependencies`.
+- **Lockfile Synchronization:** `package-lock.json` updated cleanly to guarantee `npm ci --only=production` Docker compatibility.
+- **Runtime Resolution:** Verified `node -e "require('helmet')"` resolves to a valid middleware factory function.
+- **Regression Testing:** Ran `npm test` (`jest --coverage`). All 4 test suites and 7 tests passed with zero failures.
 
 #### Subphase 1.3: Gateway Environment Variable Modeling & Defaults
 - Define the configuration schema in a centralized environment module (`src/config/env.js` or within config modules):

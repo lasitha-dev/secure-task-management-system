@@ -103,15 +103,11 @@ This document outlines the phased engineering roadmap for remediating critical s
 - **Runtime Resolution:** Verified `node -e "require('helmet')"` resolves to a valid middleware factory function.
 - **Regression Testing:** Ran `npm test` (`jest --coverage`). All 4 test suites and 7 tests passed with zero failures.
 
-#### Subphase 1.3: Gateway Environment Variable Modeling & Defaults
-- Define the configuration schema in a centralized environment module (`src/config/env.js` or within config modules):
-  - `PORT`: Gateway listening port (default: `8000`).
-  - `NODE_ENV`: Runtime mode (`development`, `test`, `production`).
-  - `FRONTEND_URL` / `CORS_ORIGIN`: Comma-separated list of allowed origins (default: `http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000`).
-  - `RATE_LIMIT_WINDOW_MS`: Time window for rate limiting in ms (default: `900000` = 15m).
-  - `RATE_LIMIT_MAX_REQUESTS`: Max requests per window per IP (default: `100`).
-  - Downservice URLs (`USER_SERVICE_URL`, `TASK_SERVICE_URL`, `NOTIFICATION_SERVICE_URL`, `REPORTING_SERVICE_URL`).
-- Create `api-gateway/.env.example` documenting all configuration keys with safe defaults.
+#### Subphase 1.3: Gateway Environment Variable Modeling & Defaults [COMPLETED]
+- **Configuration Template Created:** [api-gateway/.env.example](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/.env.example) created documenting `PORT`, `NODE_ENV`, `CORS_ORIGIN`, `FRONTEND_URL`, `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX_REQUESTS`, and downstream service URLs.
+- **Modular Environment Parser Created:** [api-gateway/src/config/env.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/src/config/env.js) implemented with fail-secure defaults, sanitizing origins, eliminating wildcards (`*`), and validating numeric constraints.
+- **Unit Test Coverage:** [api-gateway/tests/unit/env.test.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/tests/unit/env.test.js) added with 5 green unit tests covering defaults, custom configs, wildcard rejection, and fallback resolution.
+- **Test Suite Results:** 5 passed suites, 12 total tests, statement coverage increased to 80.0%.
 
 ---
 

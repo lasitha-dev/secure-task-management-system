@@ -113,32 +113,17 @@ This document outlines the phased engineering roadmap for remediating critical s
 
 ### Phase 2: Defensive HTTP Headers Implementation (OWASP A05:2021)
 
-#### Subphase 2.1: Modular Security Headers Configuration
-- Create `api-gateway/src/config/securityHeaders.js` exporting:
-  - `securityHeadersOptions`: Configuration object passed to `helmet()`.
-  - `getSecurityHeadersMiddleware()`: Factory function returning configured helmet middleware.
-- Directives to configure:
-  1. **Content-Security-Policy (CSP):**
-     - `default-src`: `["'self'"]`
-     - `script-src`: `["'self'"]`
-     - `style-src`: `["'self'", "'unsafe-inline'"]`
-     - `img-src`: `["'self'", "data:", "https:"]`
-     - `connect-src`: `["'self'", ...allowedOrigins, "https://accounts.google.com"]`
-     - `frame-src`: `["'none'"]`
-     - `object-src`: `["'none'"]`
-     - `base-uri`: `["'self'"]`
-     - `form-action`: `["'self'", "https://accounts.google.com"]`
-  2. **Clickjacking Defense:**
-     - `frameguard`: `{ action: 'deny' }` (Sets `X-Frame-Options: DENY`)
-  3. **MIME-Type Sniffing Mitigation:**
-     - `noSniff: true` (Sets `X-Content-Type-Options: nosniff`)
-  4. **Strict Transport Security (HSTS):**
-     - `hsts`: `{ maxAge: 31536000, includeSubDomains: true, preload: true }`
-  5. **Referrer Policy:**
-     - `referrerPolicy`: `{ policy: 'strict-origin-when-cross-origin' }`
-  6. **Permissions Policy:**
-     - Custom middleware or header injector disabling unneeded browser features:
-       `camera=(), microphone=(), geolocation=(), payment=()`
+#### Subphase 2.1: Modular Security Headers Configuration [COMPLETED]
+- **Modular Security Headers Module:** [api-gateway/src/config/securityHeaders.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/src/config/securityHeaders.js) implemented exporting `getSecurityHeadersOptions()` and `getSecurityHeadersMiddleware()`.
+- **Defensive Directives Enforced:**
+  - Strict Content-Security-Policy (CSP) restricting scripts, styles, frames (`'none'`), objects (`'none'`), and base URIs, while permitting OAuth and whitelisted frontend connections.
+  - Frameguard enforcing `X-Frame-Options: DENY` (anti-clickjacking).
+  - MIME-type protection enforcing `X-Content-Type-Options: nosniff`.
+  - HSTS configured with `maxAge: 31536000`, `includeSubDomains: true`, and `preload: true`.
+  - Referrer Policy set to `strict-origin-when-cross-origin`.
+  - Restrictive `Permissions-Policy` header injected (`camera=(), microphone=(), geolocation=(), payment=()`).
+- **Unit Test Coverage:** [api-gateway/tests/unit/securityHeadersConfig.test.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/tests/unit/securityHeadersConfig.test.js) added with 3 green unit tests verifying options and response header emission.
+- **Test Results:** 6 test suites passed, 15 tests total.
 
 #### Subphase 2.2: Technology Profiling Elimination
 - Ensure Express does not advertise `X-Powered-By: Express`.

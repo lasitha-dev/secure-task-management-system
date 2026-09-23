@@ -42,7 +42,7 @@ services:
       - "127.0.0.1:5001:5001"
     environment:
       - PORT=5001
-      - MONGO_URI=mongodb+srv://sathnarakumarasinghe_db_user:Wm32cnshkjWf0gIG@usermanagement.82h7tlu.mongodb.net/user-management-db?appName=UserManagement
+      - MONGO_URI=${USER_DB_URI:-mongodb+srv://user5:user5@cluster0.8e4nq9e.mongodb.net/user_management?retryWrites=true&w=majority&appName=Cluster0}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRE=${JWT_EXPIRE:-30d}
       - NODE_ENV=${NODE_ENV:-production}
@@ -70,7 +70,7 @@ services:
       - "127.0.0.1:5002:5002"
     environment:
       - PORT=5002
-      - MONGO_URI=mongodb+srv://User2:Pramod123@cluster0.8e4nq9e.mongodb.net/task-management?appName=Cluster0
+      - MONGO_URI=${TASK_DB_URI:-mongodb+srv://user5:user5@cluster0.8e4nq9e.mongodb.net/task_management?retryWrites=true&w=majority&appName=Cluster0}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRE=${JWT_EXPIRE:-30d}
       - NODE_ENV=${NODE_ENV:-production}
@@ -98,7 +98,7 @@ services:
       - "127.0.0.1:5003:5003"
     environment:
       - PORT=5003
-      - MONGO_URI=mongodb+srv://sathnarakumarasinghe_db_user:Wm32cnshkjWf0gIG@usermanagement.82h7tlu.mongodb.net/notifications-management-db?appName=UserManagement
+      - MONGO_URI=${NOTIFICATION_DB_URI:-mongodb+srv://user5:user5@cluster0.8e4nq9e.mongodb.net/notifications_management?retryWrites=true&w=majority&appName=Cluster0}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRE=${JWT_EXPIRE:-30d}
       - NODE_ENV=${NODE_ENV:-production}
@@ -128,7 +128,7 @@ services:
       - "127.0.0.1:5004:5000"
     environment:
       - PORT=5000
-      - MONGO_URI=mongodb+srv://User2:Pramod123@cluster0.8e4nq9e.mongodb.net/reporting-analytics?appName=Cluster0
+      - MONGO_URI=${REPORTING_DB_URI:-mongodb+srv://user5:user5@cluster0.8e4nq9e.mongodb.net/reporting_analytics?retryWrites=true&w=majority&appName=Cluster0}
       - JWT_SECRET=${JWT_SECRET}
       - TASK_SERVICE_URL=http://api-gateway:8000/api/tasks
       - USER_SERVICE_URL=http://api-gateway:8000/api/users

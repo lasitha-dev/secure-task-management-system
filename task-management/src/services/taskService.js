@@ -1,4 +1,5 @@
 const Task = require('../models/Task');
+const TaskPolicy = require('../utils/taskPolicy');
 const {
     createNotification,
     createBulkNotifications,
@@ -138,6 +139,13 @@ async function updateTask(id, data, user = null, authToken = null) {
     const task = await Task.findById(id);
     if (!task) return null;
 
+    if (user && !TaskPolicy.canUpdate(user, task)) {
+        const error = new Error('Forbidden: You do not have permission to update this task.');
+        error.statusCode = 403;
+        error.status = 403;
+        throw error;
+    }
+
     const TRACKED = ['title', 'description', 'status', 'priority', 'deadline', 'progress', 'project', 'sprint'];
     const activities = [];
 
@@ -179,6 +187,13 @@ async function patchTask(id, data, user = null, authToken = null) {
     const task = await Task.findById(id);
     if (!task) return null;
 
+    if (user && !TaskPolicy.canUpdate(user, task)) {
+        const error = new Error('Forbidden: You do not have permission to update this task.');
+        error.statusCode = 403;
+        error.status = 403;
+        throw error;
+    }
+
     const TRACKED = ['title', 'description', 'status', 'priority', 'deadline', 'progress'];
     const activities = [];
 
@@ -216,7 +231,17 @@ async function patchTask(id, data, user = null, authToken = null) {
 /**
  * Delete a task by ID
  */
-async function deleteTask(id) {
+async function deleteTask(id, user = null) {
+    const task = await Task.findById(id);
+    if (!task) return null;
+
+    if (user && !TaskPolicy.canDelete(user, task)) {
+        const error = new Error('Forbidden: You do not have permission to delete this task.');
+        error.statusCode = 403;
+        error.status = 403;
+        throw error;
+    }
+
     return await Task.findByIdAndDelete(id);
 }
 

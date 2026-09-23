@@ -176,16 +176,15 @@ This document outlines the phased engineering roadmap for remediating critical s
 
 ### Phase 4: Gateway Pipeline Restructuring & Traffic Shaping
 
-#### Subphase 4.1: Server Pipeline Reordering in `src/server.js`
-- Refactor `createApp()` in `api-gateway/src/server.js`:
-  1. Disable `x-powered-by` via `app.disable('x-powered-by')`.
-  2. Set `app.set('trust proxy', 1)` to correctly interpret client IP behind Docker bridge / reverse proxy.
-  3. Attach `securityHeadersMiddleware` (`helmet(securityHeadersOptions)`).
-  4. Attach `cors(corsOptions)`.
-  5. Attach `logger`.
-  6. Attach `rateLimiter`.
-  7. Register local routes (`/health`).
-  8. Register proxy dispatcher (`/api`).
+#### Subphase 4.1: Server Pipeline Reordering in `src/server.js` [COMPLETED]
+- **Pipeline Reordered & Documented:** Refactored `createApp()` in [api-gateway/src/server.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/src/server.js) strictly enforcing the 4-stage pipeline execution sequence:
+  1. Stage 1: Response Header Manipulation (`app.disable('x-powered-by')`, `app.use(getSecurityHeadersMiddleware())`).
+  2. Stage 2: Origin Authorization & Preflight Handling (`app.use(cors(corsOptions))`, `app.options('*', cors(corsOptions))`).
+  3. Stage 3: Traffic Shaping, Logging & Rate Limiting (`app.use(logger)`, `app.use(rateLimiter)`).
+  4. Stage 4: Local Endpoints & Microservice Reverse Proxy Dispatchers (`/health`, `/api`).
+- **Proxy Trust Configuration:** Configured `app.set('trust proxy', 1)` to guarantee accurate client IP resolution behind Docker bridge networks and reverse proxies.
+- **Config Decoupling:** Sourced port and downstream microservice URLs from `src/config/env.js`, eliminating hardcoded parameters.
+- **Test Integrity:** All 9 test suites and 37 tests continue to pass with 100% green assertions.
 
 #### Subphase 4.2: Rate Limiter Hardening
 - Review and refine `api-gateway/src/middleware/rateLimiter.js`:

@@ -5,47 +5,60 @@ const { rateLimiter } = require('./middleware/rateLimiter');
 const { logger } = require('./middleware/logger');
 const { getSecurityHeadersMiddleware } = require('./config/securityHeaders');
 const { getCorsOptions } = require('./config/corsConfig');
+const { config } = require('./config/env');
 
-require('dotenv').config();
-
-const PORT = process.env.PORT || 8000;
+const PORT = config.port;
 
 function resolveTarget(req) {
     if (req.url.startsWith('/users')) {
-        return process.env.USER_SERVICE_URL || 'http://localhost:5001';
+        return config.services.userServiceUrl;
     }
     if (req.url.startsWith('/tasks') || req.url.startsWith('/boards')) {
-        return process.env.TASK_SERVICE_URL || 'http://localhost:5002';
+        return config.services.taskServiceUrl;
     }
     if (req.url.startsWith('/notifications')) {
-        return process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:5003';
+        return config.services.notificationServiceUrl;
     }
     if (req.url.startsWith('/reports') || req.url.startsWith('/analytics') || req.url.startsWith('/sync')) {
-        return process.env.REPORTING_SERVICE_URL || 'http://localhost:5004';
+        return config.services.reportingServiceUrl;
     }
-    return process.env.TASK_SERVICE_URL || 'http://localhost:5002';
+    return config.services.taskServiceUrl;
 }
 
 function createApp() {
     const app = express();
 
-    // 1. Response header manipulation (Helmet & technology profiling elimination)
+    // Configure trust proxy for Docker bridge network & reverse proxy client IP resolution
+    app.set('trust proxy', 1);
+
+    // =========================================================================
+    // Stage 1: Response Header Manipulation (Helmet & System Profiling Defense)
+    // =========================================================================
     app.disable('x-powered-by');
     app.use(getSecurityHeadersMiddleware());
 
-    // 2. Origin authorization and preflight handling (CORS)
+    // =========================================================================
+    // Stage 2: Origin Authorization & Preflight Handling (CORS Whitelist)
+    // =========================================================================
     const corsOptions = getCorsOptions();
     app.use(cors(corsOptions));
     app.options('*', cors(corsOptions));
+
+    // =========================================================================
+    // Stage 3: Traffic Shaping, Logging & Rate Limiting
+    // =========================================================================
     app.use(logger);
     app.use(rateLimiter);
 
+    // =========================================================================
+    // Stage 4: Local Endpoints & Microservice Reverse Proxy Dispatchers
+    // =========================================================================
     app.get('/health', (req, res) => {
         res.status(200).json({ status: 'OK', service: 'api-gateway' });
     });
 
     app.use('/api', createProxyMiddleware({
-        target: process.env.TASK_SERVICE_URL || 'http://localhost:5002',
+        target: config.services.taskServiceUrl,
         changeOrigin: true,
         pathRewrite: (path) => '/api' + path,
         router: resolveTarget,

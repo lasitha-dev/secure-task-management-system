@@ -23,16 +23,16 @@
         <div class='clearfix'>
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">63.15% </span>
+                <span class="strong">64.1% </span>
                 <span class="quiet">Statements</span>
-                <span class='fraction'>24/38</span>
+                <span class='fraction'>25/39</span>
             </div>
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">17.24% </span>
+                <span class="strong">6.66% </span>
                 <span class="quiet">Branches</span>
-                <span class='fraction'>5/29</span>
+                <span class='fraction'>1/15</span>
             </div>
         
             
@@ -44,9 +44,9 @@
         
             
             <div class='fl pad1y space-right2'>
-                <span class="strong">63.15% </span>
+                <span class="strong">64.1% </span>
                 <span class="quiet">Lines</span>
-                <span class='fraction'>24/38</span>
+                <span class='fraction'>25/39</span>
             </div>
         
             
@@ -135,14 +135,26 @@
 <a name='L70'></a><a href='#L70'>70</a>
 <a name='L71'></a><a href='#L71'>71</a>
 <a name='L72'></a><a href='#L72'>72</a>
-<a name='L73'></a><a href='#L73'>73</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">3x</span>
+<a name='L73'></a><a href='#L73'>73</a>
+<a name='L74'></a><a href='#L74'>74</a>
+<a name='L75'></a><a href='#L75'>75</a>
+<a name='L76'></a><a href='#L76'>76</a>
+<a name='L77'></a><a href='#L77'>77</a>
+<a name='L78'></a><a href='#L78'>78</a>
+<a name='L79'></a><a href='#L79'>79</a>
+<a name='L80'></a><a href='#L80'>80</a>
+<a name='L81'></a><a href='#L81'>81</a>
+<a name='L82'></a><a href='#L82'>82</a>
+<a name='L83'></a><a href='#L83'>83</a>
+<a name='L84'></a><a href='#L84'>84</a>
+<a name='L85'></a><a href='#L85'>85</a>
+<a name='L86'></a><a href='#L86'>86</a></td><td class="line-coverage quiet"><span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
-<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
@@ -168,14 +180,28 @@
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">3x</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
+<span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-neutral">&nbsp;</span>
 <span class="cline-any cline-yes">3x</span>
 <span class="cline-any cline-yes">8x</span>
@@ -214,47 +240,60 @@ const { rateLimiter } = require('./middleware/rateLimiter');
 const { logger } = require('./middleware/logger');
 const { getSecurityHeadersMiddleware } = require('./config/securityHeaders');
 const { getCorsOptions } = require('./config/corsConfig');
+const { config } = require('./config/env');
 &nbsp;
-require('dotenv').config();
-&nbsp;
-const PORT = process.env.PORT || 8000;
+const PORT = config.port;
 &nbsp;
 function <span class="fstat-no" title="function not covered" >resolveTarget(</span>req) {
 <span class="cstat-no" title="statement not covered" >    if (req.url.startsWith('/users')) {</span>
-<span class="cstat-no" title="statement not covered" >        return process.env.USER_SERVICE_URL || 'http://localhost:5001';</span>
+<span class="cstat-no" title="statement not covered" >        return config.services.userServiceUrl;</span>
     }
 <span class="cstat-no" title="statement not covered" >    if (req.url.startsWith('/tasks') || req.url.startsWith('/boards')) {</span>
-<span class="cstat-no" title="statement not covered" >        return process.env.TASK_SERVICE_URL || 'http://localhost:5002';</span>
+<span class="cstat-no" title="statement not covered" >        return config.services.taskServiceUrl;</span>
     }
 <span class="cstat-no" title="statement not covered" >    if (req.url.startsWith('/notifications')) {</span>
-<span class="cstat-no" title="statement not covered" >        return process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:5003';</span>
+<span class="cstat-no" title="statement not covered" >        return config.services.notificationServiceUrl;</span>
     }
 <span class="cstat-no" title="statement not covered" >    if (req.url.startsWith('/reports') || req.url.startsWith('/analytics') || req.url.startsWith('/sync')) {</span>
-<span class="cstat-no" title="statement not covered" >        return process.env.REPORTING_SERVICE_URL || 'http://localhost:5004';</span>
+<span class="cstat-no" title="statement not covered" >        return config.services.reportingServiceUrl;</span>
     }
-<span class="cstat-no" title="statement not covered" >    return process.env.TASK_SERVICE_URL || 'http://localhost:5002';</span>
+<span class="cstat-no" title="statement not covered" >    return config.services.taskServiceUrl;</span>
 }
 &nbsp;
 function createApp() {
     const app = express();
 &nbsp;
-    // 1. Response header manipulation (Helmet &amp; technology profiling elimination)
+    // Configure trust proxy for Docker bridge network &amp; reverse proxy client IP resolution
+    app.set('trust proxy', 1);
+&nbsp;
+    // =========================================================================
+    // Stage 1: Response Header Manipulation (Helmet &amp; System Profiling Defense)
+    // =========================================================================
     app.disable('x-powered-by');
     app.use(getSecurityHeadersMiddleware());
 &nbsp;
-    // 2. Origin authorization and preflight handling (CORS)
+    // =========================================================================
+    // Stage 2: Origin Authorization &amp; Preflight Handling (CORS Whitelist)
+    // =========================================================================
     const corsOptions = getCorsOptions();
     app.use(cors(corsOptions));
     app.options('*', cors(corsOptions));
+&nbsp;
+    // =========================================================================
+    // Stage 3: Traffic Shaping, Logging &amp; Rate Limiting
+    // =========================================================================
     app.use(logger);
     app.use(rateLimiter);
 &nbsp;
+    // =========================================================================
+    // Stage 4: Local Endpoints &amp; Microservice Reverse Proxy Dispatchers
+    // =========================================================================
     app.get('/health', (req, res) =&gt; {
         res.status(200).json({ status: 'OK', service: 'api-gateway' });
     });
 &nbsp;
     app.use('/api', createProxyMiddleware({
-        target: process.env.TASK_SERVICE_URL || 'http://localhost:5002',
+        target: config.services.taskServiceUrl,
         changeOrigin: true,
         pathRewrite: <span class="fstat-no" title="function not covered" >(p</span>ath) =&gt; <span class="cstat-no" title="statement not covered" >'/api' + path,</span>
         router: resolveTarget,
@@ -286,7 +325,7 @@ module.exports = { app: configuredApp, createApp };
             <div class='footer quiet pad2 space-top1 center small'>
                 Code coverage generated by
                 <a href="https://istanbul.js.org/" target="_blank" rel="noopener noreferrer">istanbul</a>
-                at 2026-09-23T12:36:06.566Z
+                at 2026-09-23T13:23:06.289Z
             </div>
         <script src="../prettify.js"></script>
         <script>

@@ -146,20 +146,16 @@ This document outlines the phased engineering roadmap for remediating critical s
 
 ### Phase 3: CORS Policy Hardening & Preflight Control (OWASP A05:2021)
 
-#### Subphase 3.1: Dynamic Whitelist Origin Authorization Module
-- Create `api-gateway/src/config/corsConfig.js` exporting:
-  - `getAllowedOrigins()`: Parses environment configuration (`CORS_ORIGIN` / `FRONTEND_URL`) into an array of trimmed URLs with fail-secure defaults (`http://localhost:5173,http://127.0.0.1:5173`).
-  - `corsOptions`: Options dictionary for `cors(corsOptions)`:
-    - `origin(origin, callback)`:
-      - Direct / non-browser requests (`!origin`): Allow (`callback(null, true)`).
-      - Whitelisted origins: Allow (`callback(null, true)`).
-      - Untrusted origins: Disallow (`callback(null, false)`) so that `Access-Control-Allow-Origin` is **never** emitted.
-    - `credentials: true`: Enables secure cookie/token exchange.
-    - `methods`: `['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS']`
-    - `allowedHeaders`: `['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']`
-    - `exposedHeaders`: `['Content-Range', 'X-Content-Range']`
-    - `optionsSuccessStatus`: `204`
-    - `maxAge`: `86400` (24 hours preflight caching)
+#### Subphase 3.1: Dynamic Whitelist Origin Authorization Module [COMPLETED]
+- **Modular CORS Configuration:** Created [api-gateway/src/config/corsConfig.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/src/config/corsConfig.js) exporting `getAllowedOrigins()`, `createOriginValidator()`, and `getCorsOptions()`.
+- **Policy Invariants Enforced:**
+  - Whitelist resolution with fail-secure defaults (`http://localhost:5173`, `http://127.0.0.1:5173`, `http://localhost:3000`).
+  - Origin validator permits whitelisted origins and direct/non-browser requests (`!origin`).
+  - Untrusted origins rejected via `callback(null, false)` ensuring `Access-Control-Allow-Origin` is **never** emitted.
+  - Zero tolerance for wildcard reflections with credentials.
+  - Preflight caching (`maxAge: 86400`, `optionsSuccessStatus: 204`).
+- **Unit Test Coverage:** Created [api-gateway/tests/unit/corsConfig.test.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/tests/unit/corsConfig.test.js) with 6 unit tests asserting whitelist validation, non-browser request allowance, unauthorized rejection, and options security.
+- **Test Results:** 8 test suites passed, 29 total tests passed with zero failures. Coverage increased to 85.43% statements.
 
 #### Subphase 3.2: Immediate Preflight Interception
 - Guarantee that `OPTIONS` requests matching configured endpoints terminate at the gateway level with `204 No Content` or `200 OK` and required CORS headers, without hitting downstream services or consuming backend resources.

@@ -1,4 +1,4 @@
-const { rateLimiter } = require('../../src/middleware/rateLimiter');
+const { rateLimiter, createRateLimiter } = require('../../src/middleware/rateLimiter');
 
 describe('rateLimiter middleware', () => {
     afterEach(() => {
@@ -43,10 +43,52 @@ describe('rateLimiter middleware', () => {
         nowSpy.mockReturnValueOnce(0);
         rateLimiter(req, res, next);
 
-        nowSpy.mockReturnValueOnce((15 * 60 * 1000) + 1);
+        nowSpy.mockReturnValueOnce(15 * 60 * 1000 + 1);
         rateLimiter(req, res, next);
 
         expect(next).toHaveBeenCalledTimes(2);
         expect(res.status).not.toHaveBeenCalled();
+    });
+
+    it('emits standard RateLimit headers when setHeader is available', () => {
+        const req = { ip: '127.0.0.13' };
+        const headers = {};
+        const res = {
+            setHeader: jest.fn((key, val) => {
+                headers[key] = val;
+            }),
+            status: jest.fn().mockReturnThis(),
+            json: jest.fn(),
+        };
+        const next = jest.fn();
+
+        rateLimiter(req, res, next);
+
+        expect(headers['RateLimit-Limit']).toBe(100);
+        expect(headers['RateLimit-Remaining']).toBe(99);
+        expect(headers['RateLimit-Reset']).toBeDefined();
+        expect(next).toHaveBeenCalled();
+    });
+
+    it('emits Retry-After header upon throttling with custom factory limiter', () => {
+        const customLimiter = createRateLimiter({ windowMs: 5000, maxRequests: 2 });
+        const req = { ip: '127.0.0.14' };
+        const headers = {};
+        const res = {
+            setHeader: jest.fn((key, val) => {
+                headers[key] = val;
+            }),
+            status: jest.fn().mockReturnThis(),
+            json: jest.fn(),
+        };
+        const next = jest.fn();
+
+        customLimiter(req, res, next); // 1
+        customLimiter(req, res, next); // 2
+        customLimiter(req, res, next); // 3 -> throttled
+
+        expect(res.status).toHaveBeenCalledWith(429);
+        expect(headers['Retry-After']).toBeDefined();
+        expect(headers['RateLimit-Remaining']).toBe(0);
     });
 });

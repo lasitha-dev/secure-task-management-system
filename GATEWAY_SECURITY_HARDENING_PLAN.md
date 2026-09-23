@@ -186,11 +186,12 @@ This document outlines the phased engineering roadmap for remediating critical s
 - **Config Decoupling:** Sourced port and downstream microservice URLs from `src/config/env.js`, eliminating hardcoded parameters.
 - **Test Integrity:** All 9 test suites and 37 tests continue to pass with 100% green assertions.
 
-#### Subphase 4.2: Rate Limiter Hardening
-- Review and refine `api-gateway/src/middleware/rateLimiter.js`:
-  - Parameterize `WINDOW_MS` and `MAX_REQUESTS` from environment variables (`RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX_REQUESTS`) with safe defaults (15 min, 100 requests).
-  - Add standard rate-limiting headers: `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset` / `Retry-After`.
-  - Maintain existing test coverage in `tests/unit/rateLimiter.test.js`.
+#### Subphase 4.2: Rate Limiter Hardening [COMPLETED]
+- **Environment Parameterization:** Refactored [api-gateway/src/middleware/rateLimiter.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/src/middleware/rateLimiter.js) to source default thresholds (`windowMs: 15m`, `maxRequests: 100`) from `src/config/env.js` with fail-secure defaults.
+- **Factory Architecture:** Exported `createRateLimiter(options)` factory function for isolated unit testing and route-specific tuning.
+- **RFC Standard Headers Injected:** Responses emit `RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`, and `Retry-After` on throttled HTTP 429 status.
+- **Unit Test Coverage:** Updated [api-gateway/tests/unit/rateLimiter.test.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/tests/unit/rateLimiter.test.js) with 5 unit tests covering threshold enforcement, window resetting, header emissions, and factory instances.
+- **Test Results:** 9 test suites passed, 39 total tests passed with zero failures. Coverage increased to 87.06% statements.
 
 #### Subphase 4.3: Integration Test Suite Update
 - Update `api-gateway/tests/integration/server.test.js` to assert end-to-end integration:

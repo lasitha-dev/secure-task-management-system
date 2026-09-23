@@ -14,23 +14,27 @@
         "axios": "^1.6.0",
         "cors": "^2.8.5",
         "dotenv": "^16.4.5",
-        "express": "^4.18.2",
+        "express": "^4.22.3",
         "express-rate-limit": "^7.0.0",
         "express-validator": "^7.0.0",
         "joi": "^17.11.0",
         "jsonwebtoken": "^9.0.2",
         "mongoose": "^8.0.0",
-        "node-cron": "^3.0.2"
+        "node-cron": "^4.6.0"
     },
     "devDependencies": {
-        "jest": "^29.7.0",
+        "jest": "^30.5.2",
         "nodemon": "^3.0.2",
-        "supertest": "^6.3.3"
+        "supertest": "^7.3.0"
     },
     "jest": {
         "testEnvironment": "node",
-        "testPathIgnorePatterns": ["/node_modules/"],
-        "coveragePathIgnorePatterns": ["/node_modules/"],
+        "testPathIgnorePatterns": [
+            "/node_modules/"
+        ],
+        "coveragePathIgnorePatterns": [
+            "/node_modules/"
+        ],
         "collectCoverageFrom": [
             "src/**/*.js",
             "!src/app.js",
@@ -39,6 +43,8 @@
         "testMatch": [
             "**/tests/**/*.test.js"
         ],
-        "setupFilesAfterEnv": ["<rootDir>/jest.setup.js"]
+        "setupFilesAfterEnv": [
+            "<rootDir>/jest.setup.js"
+        ]
     }
 }

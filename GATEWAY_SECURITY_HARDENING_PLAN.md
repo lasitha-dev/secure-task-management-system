@@ -193,10 +193,16 @@ This document outlines the phased engineering roadmap for remediating critical s
 - **Unit Test Coverage:** Updated [api-gateway/tests/unit/rateLimiter.test.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/tests/unit/rateLimiter.test.js) with 5 unit tests covering threshold enforcement, window resetting, header emissions, and factory instances.
 - **Test Results:** 9 test suites passed, 39 total tests passed with zero failures. Coverage increased to 87.06% statements.
 
-#### Subphase 4.3: Integration Test Suite Update
-- Update `api-gateway/tests/integration/server.test.js` to assert end-to-end integration:
-  - `/health` endpoint returns `200 OK` with complete security headers present and `x-powered-by` absent.
-  - Proper rate limit behavior over consecutive requests.
+#### Subphase 4.3: Integration Test Suite Update [COMPLETED]
+- **Integration Suite Upgraded:** [api-gateway/tests/integration/server.test.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/tests/integration/server.test.js) expanded from 1 test to 13 comprehensive end-to-end integration tests.
+- **Pipeline Assertions Verified:**
+  1. `/health` returns status `200` with payload `{ status: 'OK', service: 'api-gateway' }`.
+  2. Full defensive security headers verified (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, CSP, HSTS, `Referrer-Policy`, and `Permissions-Policy`).
+  3. `X-Powered-By` runtime identifier is completely absent.
+  4. End-to-end CORS flows verified on live Express server (authorized reflection, credentials, unauthorized domain denial, and preflight `204`).
+  5. Rate limit headers (`RateLimit-Limit`, `RateLimit-Remaining`, `RateLimit-Reset`) verified in transit.
+  6. Non-existent routes (404 fallback) verified to maintain security headers and suppress system profiling.
+- **Test Results:** 9 test suites passed, 51 total tests passed with zero failures. Phase 4 is 100% complete.
 
 ---
 

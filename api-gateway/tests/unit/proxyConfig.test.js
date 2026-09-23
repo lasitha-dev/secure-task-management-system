@@ -113,5 +113,26 @@ describe('proxyConfig', () => {
                 options.onProxyRes({ statusCode: 200 }, { method: 'GET', url: '/users/profile' });
             }).not.toThrow();
         });
+
+        it('logs proxy requests and responses when NODE_ENV is development', () => {
+            const originalEnv = process.env.NODE_ENV;
+            const consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+            try {
+                process.env.NODE_ENV = 'development';
+                const options = proxyConfig.getProxyOptions();
+                options.onProxyReq({}, { method: 'GET', url: '/users/profile' });
+                expect(consoleSpy).toHaveBeenCalledWith(
+                    expect.stringContaining('[Gateway Proxy] GET /api/users/profile ->')
+                );
+
+                options.onProxyRes({ statusCode: 200 }, { method: 'GET', url: '/users/profile' });
+                expect(consoleSpy).toHaveBeenCalledWith(
+                    expect.stringContaining('[Gateway Proxy] Response: 200 for GET /api/users/profile')
+                );
+            } finally {
+                process.env.NODE_ENV = originalEnv;
+                consoleSpy.mockRestore();
+            }
+        });
     });
 });

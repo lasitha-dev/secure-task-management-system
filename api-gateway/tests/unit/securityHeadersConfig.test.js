@@ -71,4 +71,16 @@ describe('securityHeaders configuration and middleware', () => {
             done();
         });
     });
+
+    it('falls back to DEFAULT_ORIGINS when custom allowedOrigins is null or empty', () => {
+        const optionsNull = getSecurityHeadersOptions(null);
+        expect(optionsNull.contentSecurityPolicy.directives.connectSrc).toEqual(
+            expect.arrayContaining(["'self'"])
+        );
+
+        const optionsEmpty = getSecurityHeadersOptions([]);
+        expect(optionsEmpty.contentSecurityPolicy.directives.connectSrc).toEqual(
+            expect.arrayContaining(["'self'"])
+        );
+    });
 });

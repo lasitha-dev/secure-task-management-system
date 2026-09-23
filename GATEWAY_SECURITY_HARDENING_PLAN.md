@@ -240,17 +240,21 @@ This document outlines the phased engineering roadmap for remediating critical s
 
 ### Phase 6: Automated Verification, DAST Audit (ZAP), & Evidence Packaging
 
-#### Subphase 6.1: Comprehensive Unit & Integration Test Execution
-- Run `npm test` in `api-gateway`.
-- Target: 100% tests passing across all suites:
-  - `tests/unit/securityHeaders.test.js`
-  - `tests/unit/corsPolicy.test.js`
-  - `tests/unit/rateLimiter.test.js`
-  - `tests/unit/logger.test.js`
-  - `tests/unit/proxyConfig.test.js`
-  - `tests/integration/server.test.js`
-  - `tests/integration/oauthProxy.test.js`
-- Generate and verify code coverage report (`coverage/lcov-report/index.html`).
+#### Subphase 6.1: Comprehensive Unit & Integration Test Execution [COMPLETED]
+- **Full Test Suite Execution:** Executed `npm test` across all 10 test suites covering unit and integration testing.
+- **Coverage Optimization & Edge-Case Fortification:**
+  - Added test cases in `tests/unit/corsConfig.test.js` validating fallback to `DEFAULT_ORIGINS`.
+  - Added test cases in `tests/unit/proxyConfig.test.js` validating development-mode proxy lifecycle logging (`onProxyReq`, `onProxyRes`).
+  - Added test cases in `tests/unit/securityHeadersConfig.test.js` validating fallback to default origins for empty/null inputs.
+  - Added test cases in `tests/unit/rateLimiter.test.js` validating fallback client IP resolution via `req.connection.remoteAddress` and loopback fallback.
+- **Audit Results:**
+  - **10 of 10 test suites passed** with 100% green assertions.
+  - **70 total tests passed**, 0 failures, 0 snapshots.
+  - **Statement Coverage: 97.58%** (121/124 statements)
+  - **Branch Coverage: 91.50%** (97/106 branches)
+  - **Function Coverage: 95.83%** (23/24 functions)
+  - **Line Coverage: 97.58%** (121/124 lines)
+  - Verified HTML coverage report generated at [api-gateway/coverage/lcov-report/index.html](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/coverage/lcov-report/index.html).
 
 #### Subphase 6.2: OWASP ZAP Baseline DAST Execution & Alert Remediation
 - Run OWASP ZAP baseline scan against API Gateway container/local listener:

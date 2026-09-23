@@ -19,6 +19,14 @@ describe('corsConfig module', () => {
             const custom = ['https://trusted.domain.com'];
             expect(getAllowedOrigins(custom)).toEqual(custom);
         });
+
+        it('falls back to DEFAULT_ORIGINS if config.cors.allowedOrigins is falsy', () => {
+            const { config } = require('../../src/config/env');
+            const original = config.cors.allowedOrigins;
+            config.cors.allowedOrigins = null;
+            expect(getAllowedOrigins()).toEqual(DEFAULT_ORIGINS);
+            config.cors.allowedOrigins = original;
+        });
     });
 
     describe('createOriginValidator', () => {

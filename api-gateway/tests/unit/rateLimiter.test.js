@@ -91,4 +91,22 @@ describe('rateLimiter middleware', () => {
         expect(headers['Retry-After']).toBeDefined();
         expect(headers['RateLimit-Remaining']).toBe(0);
     });
+
+    it('falls back to req.connection.remoteAddress when req.ip is missing', () => {
+        const req = { connection: { remoteAddress: '192.168.1.50' } };
+        const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        const next = jest.fn();
+
+        rateLimiter(req, res, next);
+        expect(next).toHaveBeenCalledTimes(1);
+    });
+
+    it('falls back to 127.0.0.1 when both req.ip and req.connection are missing', () => {
+        const req = {};
+        const res = { status: jest.fn().mockReturnThis(), json: jest.fn() };
+        const next = jest.fn();
+
+        rateLimiter(req, res, next);
+        expect(next).toHaveBeenCalledTimes(1);
+    });
 });

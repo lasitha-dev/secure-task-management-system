@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const mongoSanitize = require('express-mongo-sanitize');
 const connectDB = require('./config/db');
 const taskRoutes = require('./routes/taskRoutes');
 const boardRoutes = require('./routes/boardRoutes');
@@ -23,6 +24,9 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(express.json());
+
+// Sanitize request data against NoSQL query & operator injection
+app.use(mongoSanitize());
 
 // Routes
 app.use('/api/tasks', taskRoutes);

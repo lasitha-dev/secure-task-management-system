@@ -14,6 +14,9 @@ function handleValidationErrors(req, res) {
 
 // ─── GET /api/tasks ───────────────────────────────────────────────────────────
 const getAllTasks = async (req, res) => {
+    const validationError = handleValidationErrors(req, res);
+    if (validationError) return;
+
     try {
         const { status, priority, assignedTo, project, sprint, board } = req.query;
         const filters = {};
@@ -178,6 +181,9 @@ const deleteTask = async (req, res) => {
 
 // ─── GET /api/tasks/stats ─────────────────────────────────────────────────────
 const getTaskStats = async (req, res) => {
+    const validationError = handleValidationErrors(req, res);
+    if (validationError) return;
+
     try {
         const stats = await taskService.getTaskStats(req.query);
         res.status(200).json({ success: true, stats });

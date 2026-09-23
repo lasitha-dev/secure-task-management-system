@@ -208,14 +208,11 @@ This document outlines the phased engineering roadmap for remediating critical s
 
 ### Phase 5: Reverse-Proxy Integrity & OAuth 2.0 Compatibility
 
-#### Subphase 5.1: Proxy Routing Table Audit & Route Synchronization
-- Validate `api-gateway/src/config/proxyConfig.js` against microservice topology:
-  - `/api/users` -> `USER_SERVICE_URL` (`http://localhost:5001` / `http://user-management:5001`)
-  - `/api/tasks` -> `TASK_SERVICE_URL` (`http://localhost:5002` / `http://task-management:5002`)
-  - `/api/boards` -> `TASK_SERVICE_URL` (`http://localhost:5002` / `http://task-management:5002`)
-  - `/api/notifications` -> `NOTIFICATION_SERVICE_URL` (`http://localhost:5003` / `http://notifications-management:5003`)
-  - `/api/reports`, `/api/analytics`, `/api/sync` -> `REPORTING_SERVICE_URL` (`http://localhost:5004` / `http://reporting-analytics:5000`)
-- Ensure `proxyConfig.test.js` continues to pass without regression.
+#### Subphase 5.1: Proxy Routing Table Audit & Route Synchronization [COMPLETED]
+- **Target URL Decoupling:** Updated [api-gateway/src/config/proxyConfig.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/src/config/proxyConfig.js) to consume `config.services.*` from `src/config/env.js`, strictly removing hardcoded host URLs.
+- **Route Consolidation:** Exported `resolveTarget(req)` directly from `proxyConfig.js` and wired it into [api-gateway/src/server.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/src/server.js), eliminating code duplication and ensuring modular separation.
+- **Unit Test Coverage:** Updated [api-gateway/tests/unit/proxyConfig.test.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/tests/unit/proxyConfig.test.js) with tests validating both the static route table and dynamic `resolveTarget` mappings for all microservice paths (`/users`, `/tasks`, `/boards`, `/notifications`, `/reports`, `/analytics`, `/sync`).
+- **Test Results:** 9 test suites passed, 56 total tests passed with zero failures. Statement coverage reached 95.0%.
 
 #### Subphase 5.2: OAuth 2.0 Route Pass-through Validation
 - Audit proxy handlers for OAuth compatibility:

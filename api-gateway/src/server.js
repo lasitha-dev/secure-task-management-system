@@ -6,24 +6,9 @@ const { logger } = require('./middleware/logger');
 const { getSecurityHeadersMiddleware } = require('./config/securityHeaders');
 const { getCorsOptions } = require('./config/corsConfig');
 const { config } = require('./config/env');
+const { resolveTarget } = require('./config/proxyConfig');
 
 const PORT = config.port;
-
-function resolveTarget(req) {
-    if (req.url.startsWith('/users')) {
-        return config.services.userServiceUrl;
-    }
-    if (req.url.startsWith('/tasks') || req.url.startsWith('/boards')) {
-        return config.services.taskServiceUrl;
-    }
-    if (req.url.startsWith('/notifications')) {
-        return config.services.notificationServiceUrl;
-    }
-    if (req.url.startsWith('/reports') || req.url.startsWith('/analytics') || req.url.startsWith('/sync')) {
-        return config.services.reportingServiceUrl;
-    }
-    return config.services.taskServiceUrl;
-}
 
 function createApp() {
     const app = express();

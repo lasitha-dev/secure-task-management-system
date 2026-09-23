@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<coverage generated="1790171116935" clover="3.2.0">
-  <project timestamp="1790171116936" name="All files">
-    <metrics statements="116" coveredstatements="101" conditionals="99" coveredconditionals="77" methods="23" coveredmethods="18" elements="238" coveredelements="196" complexity="0" loc="116" ncloc="116" packages="3" files="7" classes="7"/>
+<coverage generated="1790178573144" clover="3.2.0">
+  <project timestamp="1790178573144" name="All files">
+    <metrics statements="120" coveredstatements="114" conditionals="89" coveredconditionals="80" methods="23" coveredmethods="19" elements="232" coveredelements="213" complexity="0" loc="120" ncloc="120" packages="3" files="7" classes="7"/>
     <package name="src">
-      <metrics statements="39" coveredstatements="25" conditionals="15" coveredconditionals="1" methods="7" coveredmethods="2"/>
+      <metrics statements="31" coveredstatements="26" conditionals="2" coveredconditionals="1" methods="6" coveredmethods="2"/>
       <file name="server.js" path="C:\Users\lasit\OneDrive\Documents\IDEs\VS Code\secure-task-management-system\api-gateway\src\server.js">
-        <metrics statements="39" coveredstatements="25" conditionals="15" coveredconditionals="1" methods="7" coveredmethods="2"/>
+        <metrics statements="31" coveredstatements="26" conditionals="2" coveredconditionals="1" methods="6" coveredmethods="2"/>
         <line num="1" count="3" type="stmt"/>
         <line num="2" count="3" type="stmt"/>
         <line num="3" count="3" type="stmt"/>
@@ -14,41 +14,33 @@
         <line num="6" count="3" type="stmt"/>
         <line num="7" count="3" type="stmt"/>
         <line num="8" count="3" type="stmt"/>
-        <line num="10" count="3" type="stmt"/>
-        <line num="13" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="14" count="0" type="stmt"/>
-        <line num="16" count="0" type="cond" truecount="0" falsecount="4"/>
-        <line num="17" count="0" type="stmt"/>
-        <line num="19" count="0" type="cond" truecount="0" falsecount="2"/>
-        <line num="20" count="0" type="stmt"/>
-        <line num="22" count="0" type="cond" truecount="0" falsecount="5"/>
-        <line num="23" count="0" type="stmt"/>
-        <line num="25" count="0" type="stmt"/>
+        <line num="9" count="3" type="stmt"/>
+        <line num="11" count="3" type="stmt"/>
+        <line num="14" count="3" type="stmt"/>
+        <line num="17" count="3" type="stmt"/>
+        <line num="22" count="3" type="stmt"/>
+        <line num="23" count="3" type="stmt"/>
+        <line num="28" count="3" type="stmt"/>
         <line num="29" count="3" type="stmt"/>
-        <line num="32" count="3" type="stmt"/>
-        <line num="37" count="3" type="stmt"/>
-        <line num="38" count="3" type="stmt"/>
-        <line num="43" count="3" type="stmt"/>
-        <line num="44" count="3" type="stmt"/>
+        <line num="30" count="3" type="stmt"/>
+        <line num="35" count="3" type="stmt"/>
+        <line num="36" count="3" type="stmt"/>
+        <line num="41" count="3" type="stmt"/>
+        <line num="42" count="11" type="stmt"/>
         <line num="45" count="3" type="stmt"/>
-        <line num="50" count="3" type="stmt"/>
-        <line num="51" count="3" type="stmt"/>
-        <line num="56" count="3" type="stmt"/>
-        <line num="57" count="11" type="stmt"/>
-        <line num="60" count="3" type="stmt"/>
-        <line num="63" count="0" type="stmt"/>
+        <line num="48" count="0" type="stmt"/>
+        <line num="51" count="0" type="stmt"/>
+        <line num="54" count="0" type="stmt"/>
+        <line num="59" count="3" type="stmt"/>
+        <line num="62" count="3" type="stmt"/>
+        <line num="64" count="3" type="cond" truecount="1" falsecount="1"/>
+        <line num="65" count="0" type="stmt"/>
         <line num="66" count="0" type="stmt"/>
-        <line num="69" count="0" type="stmt"/>
-        <line num="74" count="3" type="stmt"/>
-        <line num="77" count="3" type="stmt"/>
-        <line num="79" count="3" type="cond" truecount="1" falsecount="1"/>
-        <line num="80" count="0" type="stmt"/>
-        <line num="81" count="0" type="stmt"/>
-        <line num="85" count="3" type="stmt"/>
+        <line num="70" count="3" type="stmt"/>
       </file>
     </package>
     <package name="src.config">
-      <metrics statements="44" coveredstatements="43" conditionals="57" coveredconditionals="54" methods="13" coveredmethods="13"/>
+      <metrics statements="56" coveredstatements="55" conditionals="60" coveredconditionals="57" methods="14" coveredmethods="14"/>
       <file name="corsConfig.js" path="C:\Users\lasit\OneDrive\Documents\IDEs\VS Code\secure-task-management-system\api-gateway\src\config\corsConfig.js">
         <metrics statements="17" coveredstatements="17" conditionals="10" coveredconditionals="9" methods="4" coveredmethods="4"/>
         <line num="6" count="4" type="stmt"/>
@@ -71,23 +63,35 @@
       </file>
       <file name="env.js" path="C:\Users\lasit\OneDrive\Documents\IDEs\VS Code\secure-task-management-system\api-gateway\src\config\env.js">
         <metrics statements="12" coveredstatements="12" conditionals="26" coveredconditionals="26" methods="5" coveredmethods="5"/>
-        <line num="6" count="7" type="stmt"/>
-        <line num="13" count="12" type="cond" truecount="4" falsecount="0"/>
-        <line num="14" count="9" type="stmt"/>
+        <line num="6" count="8" type="stmt"/>
+        <line num="13" count="13" type="cond" truecount="4" falsecount="0"/>
+        <line num="14" count="10" type="stmt"/>
         <line num="17" count="3" type="stmt"/>
         <line num="19" count="4" type="stmt"/>
         <line num="20" count="4" type="cond" truecount="2" falsecount="0"/>
         <line num="22" count="3" type="cond" truecount="2" falsecount="0"/>
-        <line num="26" count="36" type="stmt"/>
-        <line num="27" count="36" type="cond" truecount="4" falsecount="0"/>
-        <line num="31" count="12" type="cond" truecount="2" falsecount="0"/>
-        <line num="33" count="12" type="stmt"/>
-        <line num="52" count="7" type="stmt"/>
+        <line num="26" count="39" type="stmt"/>
+        <line num="27" count="39" type="cond" truecount="4" falsecount="0"/>
+        <line num="31" count="13" type="cond" truecount="2" falsecount="0"/>
+        <line num="33" count="13" type="stmt"/>
+        <line num="52" count="8" type="stmt"/>
       </file>
       <file name="proxyConfig.js" path="C:\Users\lasit\OneDrive\Documents\IDEs\VS Code\secure-task-management-system\api-gateway\src\config\proxyConfig.js">
-        <metrics statements="2" coveredstatements="2" conditionals="14" coveredconditionals="14" methods="0" coveredmethods="0"/>
-        <line num="5" count="1" type="stmt"/>
-        <line num="45" count="1" type="stmt"/>
+        <metrics statements="14" coveredstatements="14" conditionals="17" coveredconditionals="17" methods="1" coveredmethods="1"/>
+        <line num="5" count="4" type="stmt"/>
+        <line num="7" count="4" type="stmt"/>
+        <line num="46" count="10" type="cond" truecount="4" falsecount="0"/>
+        <line num="47" count="1" type="stmt"/>
+        <line num="49" count="9" type="cond" truecount="2" falsecount="0"/>
+        <line num="50" count="2" type="stmt"/>
+        <line num="52" count="7" type="cond" truecount="4" falsecount="0"/>
+        <line num="53" count="2" type="stmt"/>
+        <line num="55" count="5" type="cond" truecount="2" falsecount="0"/>
+        <line num="56" count="1" type="stmt"/>
+        <line num="58" count="4" type="cond" truecount="2" falsecount="0"/>
+        <line num="63" count="3" type="stmt"/>
+        <line num="65" count="1" type="stmt"/>
+        <line num="69" count="4" type="stmt"/>
       </file>
       <file name="securityHeaders.js" path="C:\Users\lasit\OneDrive\Documents\IDEs\VS Code\secure-task-management-system\api-gateway\src\config\securityHeaders.js">
         <metrics statements="13" coveredstatements="12" conditionals="7" coveredconditionals="5" methods="4" coveredmethods="4"/>

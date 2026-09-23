@@ -104,5 +104,3 @@ router.delete('/:id/comments/:commentId',      protect, deleteComment);
 router.post('/:id/time-logs',                  protect, logTime);
 
 module.exports = router;
-
-module.exports = router;

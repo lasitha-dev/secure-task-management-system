@@ -225,12 +225,16 @@ This document outlines the phased engineering roadmap for remediating critical s
 - **Unit Test Coverage:** Added unit tests in [api-gateway/tests/unit/proxyConfig.test.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/tests/unit/proxyConfig.test.js) verifying proxy options, query string preservation through `pathRewrite`, override capabilities, and proxy handler execution.
 - **Test Results:** 9 test suites passed, 60 total tests passed with zero failures. Statement coverage is 95.16%.
 
-#### Subphase 5.3: Reverse-Proxy OAuth Integration Test Suite
-- Create `api-gateway/tests/integration/oauthProxy.test.js`:
-  - Mock downstream User Service redirecting `302` to `https://accounts.google.com/o/oauth2/v2/auth?...`.
-  - Verify API Gateway returns HTTP `302` with intact `Location` containing `client_id`, `state`, `redirect_uri`.
-  - Simulate callback request `/api/users/auth/google/callback?code=mock_code&state=mock_state`.
-  - Verify query parameters are transmitted intact to downstream mock handler.
+#### Subphase 5.3: Reverse-Proxy OAuth Integration Test Suite [COMPLETED]
+- **OAuth Proxy Integration Suite Created:** Implemented [api-gateway/tests/integration/oauthProxy.test.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/tests/integration/oauthProxy.test.js) with an ephemeral mock downstream HTTP server simulating User Service endpoints.
+- **Verified Reverse-Proxy Integrity Assertions:**
+  1. `GET /api/users/auth/google` passes through HTTP `302 Found` with exact, unaltered `Location` header (`https://accounts.google.com/o/oauth2/v2/auth?...`) and preserves `Set-Cookie` session state.
+  2. `GET /api/users/auth/google/callback?code=...&state=...` transmits query parameters intact to the downstream service and returns the downstream redirect (`302`) with session cookies.
+  3. `GET /api/users/auth/google/redirect-temporary` passes through HTTP `307 Temporary Redirect` with intact `Location`.
+  4. `GET /api/users/profile` forwards `Authorization: Bearer <token>` and `Cookie` headers intact without modification.
+  5. Downstream service receives proxy forwarding metadata (`x-forwarded-for`, `x-forwarded-host`).
+  6. Security headers (`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, CSP) are strictly applied and `X-Powered-By` is stripped on all proxied responses.
+- **Test Results:** 10 test suites passed, 65 total tests passed with zero failures. Phase 5 is 100% complete.
 
 ---
 

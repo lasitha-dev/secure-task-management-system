@@ -28,19 +28,78 @@ describe('Reports API Endpoints', () => {
     });
 
     describe('GET /api/reports', () => {
-        it('should return all reports as array', async () => {
-            Report.find = jest.fn().mockReturnValue({
-                sort: jest.fn().mockResolvedValue([
-                    { _id: '1', title: 'Report 1', status: 'ready' },
-                    { _id: '2', title: 'Report 2', status: 'processing' }
-                ])
-            });
+        function mockFindChain(reports) {
+            const chain = {
+                sort: jest.fn().mockReturnThis(),
+                skip: jest.fn().mockReturnThis(),
+                limit: jest.fn().mockResolvedValue(reports)
+            };
+            Report.find = jest.fn().mockReturnValue(chain);
+            return chain;
+        }
+
+        beforeEach(() => {
+            Report.countDocuments = jest.fn().mockResolvedValue(2);
+        });
+
+        it('should return all reports as array with pagination metadata', async () => {
+            mockFindChain([
+                { _id: '1', title: 'Report 1', status: 'ready' },
+                { _id: '2', title: 'Report 2', status: 'processing' }
+            ]);
 
             const res = await request(app)
                 .get('/api/reports');
 
             expect(res.status).toBe(200);
             expect(res.body.success).toBe(true);
+            expect(res.body.pagination).toEqual({ page: 1, limit: 20, total: 2, totalPages: 1 });
+        });
+
+        it('should accept limit=50', async () => {
+            const chain = mockFindChain([]);
+
+            const res = await request(app).get('/api/reports?limit=50');
+
+            expect(res.status).toBe(200);
+            expect(chain.limit).toHaveBeenCalledWith(50);
+            expect(res.body.pagination.limit).toBe(50);
+        });
+
+        it('should accept limit=100 (the maximum allowed)', async () => {
+            const chain = mockFindChain([]);
+
+            const res = await request(app).get('/api/reports?limit=100');
+
+            expect(res.status).toBe(200);
+            expect(chain.limit).toHaveBeenCalledWith(100);
+            expect(res.body.pagination.limit).toBe(100);
+        });
+
+        it('should reject limit=101 rather than allow an unbounded query', async () => {
+            mockFindChain([]);
+
+            const res = await request(app).get('/api/reports?limit=101');
+
+            expect(res.status).toBe(400);
+            expect(res.body.success).toBe(false);
+        });
+
+        it('should reject a very large limit rather than allow an unbounded query', async () => {
+            mockFindChain([]);
+
+            const res = await request(app).get('/api/reports?limit=999999999');
+
+            expect(res.status).toBe(400);
+            expect(res.body.success).toBe(false);
+        });
+
+        it('should reject a negative page', async () => {
+            mockFindChain([]);
+
+            const res = await request(app).get('/api/reports?page=-1');
+
+            expect(res.status).toBe(400);
         });
     });
 

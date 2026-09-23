@@ -36,8 +36,15 @@ const authMiddleware = (req, res, next) => {
             return next();
         }
 
+        if (!process.env.JWT_SECRET) {
+            return res.status(500).json({
+                success: false,
+                message: 'Authentication service is not configured correctly'
+            });
+        }
+
         // Verify real JWT tokens and extract user info
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-jwt-secret');
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.user = {
             userId: decoded.userId || decoded.id || decoded._id,
             userName: decoded.userName || decoded.name || decoded.email,

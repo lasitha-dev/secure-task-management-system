@@ -1,4 +1,4 @@
-FROM node:18-alpine
+FROM node:20-alpine
 
 WORKDIR /usr/src/app
 
@@ -9,5 +9,7 @@ RUN npm ci --only=production
 COPY . .
 
 EXPOSE 5003
+
+USER node
 
 CMD ["node", "src/app.js"]

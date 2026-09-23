@@ -125,10 +125,10 @@ This document outlines the phased engineering roadmap for remediating critical s
 - **Unit Test Coverage:** [api-gateway/tests/unit/securityHeadersConfig.test.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/tests/unit/securityHeadersConfig.test.js) added with 3 green unit tests verifying options and response header emission.
 - **Test Results:** 6 test suites passed, 15 tests total.
 
-#### Subphase 2.2: Technology Profiling Elimination
-- Ensure Express does not advertise `X-Powered-By: Express`.
-- Configure `app.disable('x-powered-by')` explicitly in `createApp()`.
-- Ensure Helmet’s `hidePoweredBy` is enabled.
+#### Subphase 2.2: Technology Profiling Elimination [COMPLETED]
+- **Express-Native Hardening:** Explicitly disabled runtime header advertising via `app.disable('x-powered-by')` in `api-gateway/src/server.js`.
+- **Helmet Middleware Mounting:** Attached `getSecurityHeadersMiddleware()` at the topmost Express application cycle boundary.
+- **Verification:** Verified live HTTP `/health` response completely omits `X-Powered-By`.
 
 #### Subphase 2.3: Security Headers Test Suite
 - Create `api-gateway/tests/unit/securityHeaders.test.js`:

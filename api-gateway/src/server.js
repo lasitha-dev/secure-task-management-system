@@ -3,6 +3,7 @@ const cors = require('cors');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const { rateLimiter } = require('./middleware/rateLimiter');
 const { logger } = require('./middleware/logger');
+const { getSecurityHeadersMiddleware } = require('./config/securityHeaders');
 
 require('dotenv').config();
 
@@ -26,6 +27,10 @@ function resolveTarget(req) {
 
 function createApp() {
     const app = express();
+
+    // 1. Response header manipulation (Helmet & technology profiling elimination)
+    app.disable('x-powered-by');
+    app.use(getSecurityHeadersMiddleware());
 
     const corsOptions = {
         origin: process.env.CORS_ORIGIN ? process.env.CORS_ORIGIN.split(',') : '*',

@@ -64,6 +64,30 @@ const proxyConfig = {
         }
         return config.services.taskServiceUrl;
     },
+    getProxyOptions(overrides = {}) {
+        return {
+            target: config.services.taskServiceUrl,
+            changeOrigin: true,
+            autoRewrite: false,
+            preserveHeaderKeyCase: true,
+            xfwd: true,
+            pathRewrite: (path) => '/api' + path,
+            router: proxyConfig.resolveTarget,
+            onProxyReq: (_proxyReq, req) => {
+                if (process.env.NODE_ENV !== 'test') {
+                    const target = proxyConfig.resolveTarget(req);
+                    console.log(`[Gateway Proxy] ${req ? req.method : 'UNKNOWN'} /api${req ? req.url : ''} -> ${target}`);
+                }
+            },
+            onProxyRes: (proxyRes, req) => {
+                if (process.env.NODE_ENV !== 'test') {
+                    console.log(`[Gateway Proxy] Response: ${proxyRes ? proxyRes.statusCode : 'UNKNOWN'} for ${req ? req.method : 'UNKNOWN'} /api${req ? req.url : ''}`);
+                }
+            },
+            logLevel: process.env.NODE_ENV === 'test' ? 'silent' : 'debug',
+            ...overrides,
+        };
+    },
 };
 
 module.exports = proxyConfig;

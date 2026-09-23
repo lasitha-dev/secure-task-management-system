@@ -214,14 +214,16 @@ This document outlines the phased engineering roadmap for remediating critical s
 - **Unit Test Coverage:** Updated [api-gateway/tests/unit/proxyConfig.test.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/tests/unit/proxyConfig.test.js) with tests validating both the static route table and dynamic `resolveTarget` mappings for all microservice paths (`/users`, `/tasks`, `/boards`, `/notifications`, `/reports`, `/analytics`, `/sync`).
 - **Test Results:** 9 test suites passed, 56 total tests passed with zero failures. Statement coverage reached 95.0%.
 
-#### Subphase 5.2: OAuth 2.0 Route Pass-through Validation
-- Audit proxy handlers for OAuth compatibility:
-  - Route: `/api/users/auth/google` (initiates consent handshake)
-  - Route: `/api/users/auth/google/callback` (Google callback with query parameters `?code=...&state=...`)
-- Requirements:
-  - Proxy configuration must NOT strip query parameters (`preserveHeaderKeyCase`, `autoRewrite: false`).
-  - Proxy must forward HTTP `302`/`307` redirect responses intact with `Location` header back to the browser.
-  - Proxy must preserve `Set-Cookie` and `Cookie` headers for session integrity.
+#### Subphase 5.2: OAuth 2.0 Route Pass-through Validation [COMPLETED]
+- **Modular Proxy Hardening Factory:** Created and exported `getProxyOptions(overrides = {})` in [api-gateway/src/config/proxyConfig.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/src/config/proxyConfig.js), moving all proxy configuration options out of [src/server.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/src/server.js) in compliance with Rule 2.2.
+- **OAuth & Redirect Integrity Configuration:**
+  - `autoRewrite: false` enforces that downstream HTTP `302`/`307` redirect responses retain their exact `Location` header (e.g. Google OAuth consent URL `https://accounts.google.com/o/oauth2/v2/auth?...` or client callback URLs) without being rewritten to the gateway host.
+  - `preserveHeaderKeyCase: true` prevents downstream and upstream alteration of critical authentication headers (`Authorization`, `Cookie`, `Set-Cookie`).
+  - `xfwd: true` attaches standard reverse-proxy forwarding headers (`X-Forwarded-For`, `X-Forwarded-Proto`, `X-Forwarded-Host`) to ensure downstream auth services correctly reconstruct callback URIs.
+  - `pathRewrite: (path) => '/api' + path` guarantees full path and query parameter preservation (`?code=...&state=...`) across OAuth handshakes (`/api/users/auth/google/callback`).
+  - `logLevel: process.env.NODE_ENV === 'test' ? 'silent' : 'debug'` ensures clean test execution while retaining observability in development and production.
+- **Unit Test Coverage:** Added unit tests in [api-gateway/tests/unit/proxyConfig.test.js](file:///c:/Users/lasit/OneDrive/Documents/IDEs/VS%20Code/secure-task-management-system/api-gateway/tests/unit/proxyConfig.test.js) verifying proxy options, query string preservation through `pathRewrite`, override capabilities, and proxy handler execution.
+- **Test Results:** 9 test suites passed, 60 total tests passed with zero failures. Statement coverage is 95.16%.
 
 #### Subphase 5.3: Reverse-Proxy OAuth Integration Test Suite
 - Create `api-gateway/tests/integration/oauthProxy.test.js`:

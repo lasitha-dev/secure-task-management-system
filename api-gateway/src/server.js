@@ -6,7 +6,7 @@ const { logger } = require('./middleware/logger');
 const { getSecurityHeadersMiddleware } = require('./config/securityHeaders');
 const { getCorsOptions } = require('./config/corsConfig');
 const { config } = require('./config/env');
-const { resolveTarget } = require('./config/proxyConfig');
+const { getProxyOptions } = require('./config/proxyConfig');
 
 const PORT = config.port;
 
@@ -42,19 +42,7 @@ function createApp() {
         res.status(200).json({ status: 'OK', service: 'api-gateway' });
     });
 
-    app.use('/api', createProxyMiddleware({
-        target: config.services.taskServiceUrl,
-        changeOrigin: true,
-        pathRewrite: (path) => '/api' + path,
-        router: resolveTarget,
-        onProxyReq: (_proxyReq, req) => {
-            console.log(`[Gateway Proxy] ${req.method} /api${req.url} -> ${resolveTarget(req)}`);
-        },
-        onProxyRes: (proxyRes, req) => {
-            console.log(`[Gateway Proxy] Response: ${proxyRes.statusCode} for ${req.method} /api${req.url}`);
-        },
-        logLevel: 'debug',
-    }));
+    app.use('/api', createProxyMiddleware(getProxyOptions()));
 
     return app;
 }

@@ -65,4 +65,53 @@ describe('proxyConfig', () => {
             expect(proxyConfig.resolveTarget(null)).toBe(config.services.taskServiceUrl);
         });
     });
+
+    describe('getProxyOptions', () => {
+        it('returns hardened proxy options adhering to OAuth and security standards', () => {
+            const options = proxyConfig.getProxyOptions();
+
+            expect(options.target).toBe(config.services.taskServiceUrl);
+            expect(options.changeOrigin).toBe(true);
+            expect(options.autoRewrite).toBe(false);
+            expect(options.preserveHeaderKeyCase).toBe(true);
+            expect(options.xfwd).toBe(true);
+            expect(options.router).toBe(proxyConfig.resolveTarget);
+            expect(options.logLevel).toBe('silent');
+            expect(typeof options.pathRewrite).toBe('function');
+            expect(typeof options.onProxyReq).toBe('function');
+            expect(typeof options.onProxyRes).toBe('function');
+        });
+
+        it('preserves paths and query parameters through pathRewrite', () => {
+            const { pathRewrite } = proxyConfig.getProxyOptions();
+
+            expect(pathRewrite('/users/auth/google')).toBe('/api/users/auth/google');
+            expect(
+                pathRewrite('/users/auth/google/callback?code=mock_auth_code&state=secure_state_val')
+            ).toBe('/api/users/auth/google/callback?code=mock_auth_code&state=secure_state_val');
+            expect(pathRewrite('/tasks?status=completed&page=2')).toBe('/api/tasks?status=completed&page=2');
+        });
+
+        it('allows custom overrides', () => {
+            const customTarget = 'http://custom-host:9999';
+            const options = proxyConfig.getProxyOptions({
+                target: customTarget,
+                changeOrigin: false,
+            });
+
+            expect(options.target).toBe(customTarget);
+            expect(options.changeOrigin).toBe(false);
+            expect(options.autoRewrite).toBe(false);
+        });
+
+        it('executes onProxyReq and onProxyRes safely', () => {
+            const options = proxyConfig.getProxyOptions();
+            expect(() => {
+                options.onProxyReq({}, { method: 'GET', url: '/users/profile' });
+            }).not.toThrow();
+            expect(() => {
+                options.onProxyRes({ statusCode: 200 }, { method: 'GET', url: '/users/profile' });
+            }).not.toThrow();
+        });
+    });
 });

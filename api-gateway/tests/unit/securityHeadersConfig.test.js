@@ -24,6 +24,7 @@ describe('securityHeaders configuration and middleware', () => {
         expect(directives.defaultSrc).toEqual(["'self'"]);
         expect(directives.scriptSrc).toEqual(["'self'"]);
         expect(directives.frameSrc).toEqual(["'none'"]);
+        expect(directives.frameAncestors).toEqual(["'none'"]);
         expect(directives.objectSrc).toEqual(["'none'"]);
         expect(directives.baseUri).toEqual(["'self'"]);
         expect(directives.formAction).toContain('https://accounts.google.com');

@@ -20,6 +20,7 @@ function getSecurityHeadersOptions(allowedOrigins = config.cors.allowedOrigins) 
                 imgSrc: ["'self'", 'data:', 'https:'],
                 connectSrc: ["'self'", ...origins, 'https://accounts.google.com'],
                 frameSrc: ["'none'"],
+                frameAncestors: ["'none'"],
                 objectSrc: ["'none'"],
                 baseUri: ["'self'"],
                 formAction: ["'self'", 'https://accounts.google.com'],

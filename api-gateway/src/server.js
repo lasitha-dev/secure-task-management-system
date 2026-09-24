@@ -44,6 +44,14 @@ function createApp() {
 
     app.use('/api', createProxyMiddleware(getProxyOptions()));
 
+    // 404 Catch-All Handler (ensures full security headers are retained on unmapped endpoints)
+    app.use((req, res) => {
+        res.status(404).json({
+            success: false,
+            message: 'Resource not found',
+        });
+    });
+
     return app;
 }
 

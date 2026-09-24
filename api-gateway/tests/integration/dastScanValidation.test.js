@@ -54,7 +54,17 @@ describe('OWASP ZAP DAST Baseline Audit Verification Suite', () => {
         it('maintains strict CSP across unauthorized routes and errors', async () => {
             const res = await request(app).get('/dast-security-test-endpoint').expect(404);
             expect(res.headers['content-security-policy']).toBeDefined();
-            expect(res.headers['content-security-policy']).toContain('default-src');
+            expect(res.headers['content-security-policy']).toContain("default-src 'self'");
+            expect(res.headers['content-security-policy']).toContain("frame-ancestors 'none'");
+        });
+
+        it('enforces full CSP on crawler probe routes such as /sitemap.xml without fallback warnings', async () => {
+            const res = await request(app).get('/sitemap.xml').expect(404);
+            const csp = res.headers['content-security-policy'];
+            expect(csp).toBeDefined();
+            expect(csp).toContain("default-src 'self'");
+            expect(csp).toContain("frame-ancestors 'none'");
+            expect(csp).toContain("form-action 'self'");
         });
     });
 

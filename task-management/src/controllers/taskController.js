@@ -1,5 +1,6 @@
 const { validationResult } = require('express-validator');
 const taskService = require('../services/taskService');
+const TaskPolicy = require('../utils/taskPolicy');
 const { getAllUsers, searchUsers } = require('../services/userService');
 
 // ─── Helper ────────────────────────────────────────────────────────────────────
@@ -13,6 +14,9 @@ function handleValidationErrors(req, res) {
 
 // ─── GET /api/tasks ───────────────────────────────────────────────────────────
 const getAllTasks = async (req, res) => {
+    const validationError = handleValidationErrors(req, res);
+    if (validationError) return;
+
     try {
         const { status, priority, assignedTo, project, sprint, board } = req.query;
         const filters = {};
@@ -94,19 +98,28 @@ const updateTask = async (req, res) => {
     if (validationError) return;
 
     try {
-        const authToken = req.headers.authorization?.split(' ')[1] || null;
-        const task = await taskService.updateTask(req.params.id, req.body, req.user, authToken);
-
-        if (!task) {
+        const existingTask = await taskService.getTaskById(req.params.id);
+        if (!existingTask) {
             return res.status(404).json({ success: false, message: 'Task not found.' });
         }
 
+        if (!TaskPolicy.canUpdate(req.user, existingTask)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Forbidden: You do not have permission to update this task.',
+            });
+        }
+
+        const authToken = req.headers.authorization?.split(' ')[1] || null;
+        const task = await taskService.updateTask(req.params.id, req.body, req.user, authToken);
+
         res.status(200).json({ success: true, message: 'Task updated successfully.', task });
     } catch (error) {
-        if (error.kind === 'ObjectId') {
+        if (error.kind === 'ObjectId' || error.name === 'CastError') {
             return res.status(400).json({ success: false, message: 'Invalid task ID.' });
         }
-        res.status(500).json({ success: false, message: error.message });
+        const statusCode = error.statusCode || error.status || 500;
+        res.status(statusCode).json({ success: false, message: error.message });
     }
 };
 
@@ -114,42 +127,63 @@ const updateTask = async (req, res) => {
 // Used by drag-and-drop to update status only (or any partial update)
 const patchTask = async (req, res) => {
     try {
-        const authToken = req.headers.authorization?.split(' ')[1] || null;
-        const task = await taskService.patchTask(req.params.id, req.body, req.user, authToken);
-
-        if (!task) {
+        const existingTask = await taskService.getTaskById(req.params.id);
+        if (!existingTask) {
             return res.status(404).json({ success: false, message: 'Task not found.' });
         }
 
+        if (!TaskPolicy.canUpdate(req.user, existingTask)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Forbidden: You do not have permission to update this task.',
+            });
+        }
+
+        const authToken = req.headers.authorization?.split(' ')[1] || null;
+        const task = await taskService.patchTask(req.params.id, req.body, req.user, authToken);
+
         res.status(200).json({ success: true, message: 'Task patched successfully.', task });
     } catch (error) {
-        if (error.kind === 'ObjectId') {
+        if (error.kind === 'ObjectId' || error.name === 'CastError') {
             return res.status(400).json({ success: false, message: 'Invalid task ID.' });
         }
-        res.status(500).json({ success: false, message: error.message });
+        const statusCode = error.statusCode || error.status || 500;
+        res.status(statusCode).json({ success: false, message: error.message });
     }
 };
 
 // ─── DELETE /api/tasks/:id ────────────────────────────────────────────────────
 const deleteTask = async (req, res) => {
     try {
-        const task = await taskService.deleteTask(req.params.id);
-
-        if (!task) {
+        const existingTask = await taskService.getTaskById(req.params.id);
+        if (!existingTask) {
             return res.status(404).json({ success: false, message: 'Task not found.' });
         }
 
+        if (!TaskPolicy.canDelete(req.user, existingTask)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Forbidden: You do not have permission to delete this task.',
+            });
+        }
+
+        await taskService.deleteTask(req.params.id, req.user);
+
         res.status(200).json({ success: true, message: 'Task deleted successfully.' });
     } catch (error) {
-        if (error.kind === 'ObjectId') {
+        if (error.kind === 'ObjectId' || error.name === 'CastError') {
             return res.status(400).json({ success: false, message: 'Invalid task ID.' });
         }
-        res.status(500).json({ success: false, message: error.message });
+        const statusCode = error.statusCode || error.status || 500;
+        res.status(statusCode).json({ success: false, message: error.message });
     }
 };
 
 // ─── GET /api/tasks/stats ─────────────────────────────────────────────────────
 const getTaskStats = async (req, res) => {
+    const validationError = handleValidationErrors(req, res);
+    if (validationError) return;
+
     try {
         const stats = await taskService.getTaskStats(req.query);
         res.status(200).json({ success: true, stats });

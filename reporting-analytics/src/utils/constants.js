@@ -33,11 +33,19 @@ const DAYS_OF_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'S
 // Frequency for generating random tasks in mock mode
 const TASK_GENERATION_COUNT = 20;
 
+// Pagination bounds (A04 resource-exhaustion hardening)
+const PAGINATION = {
+    DEFAULT_PAGE: 1,
+    DEFAULT_LIMIT: 20,
+    MAX_LIMIT: 100
+};
+
 module.exports = {
     TASK_STATUS,
     PERIOD,
     REPORT_STATUS,
     MOCK_USERNAMES,
     DAYS_OF_WEEK,
-    TASK_GENERATION_COUNT
+    TASK_GENERATION_COUNT,
+    PAGINATION
 };

@@ -138,6 +138,76 @@ describe('NotificationService', () => {
 
             expect(result.pagination).toEqual({ total: 0, page: 2, limit: 10, pages: 0 });
         });
+
+        // ---------------------------------------------------------------------
+        // A04 hardening: defensive pagination clamp (independent of route
+        // validation, so a direct/bypassing caller still cannot force an
+        // unbounded query).
+        // ---------------------------------------------------------------------
+        it('accepts limit=50 as-is (within the allowed range)', async () => {
+            NotificationModel.lean.mockResolvedValue([]);
+            NotificationModel.countDocuments.mockResolvedValue(0);
+
+            const result = await service.getAllNotifications({ limit: 50 });
+
+            expect(NotificationModel.limit).toHaveBeenCalledWith(50);
+            expect(result.pagination.limit).toBe(50);
+        });
+
+        it('accepts limit=100 as-is (the maximum allowed)', async () => {
+            NotificationModel.lean.mockResolvedValue([]);
+            NotificationModel.countDocuments.mockResolvedValue(0);
+
+            const result = await service.getAllNotifications({ limit: 100 });
+
+            expect(NotificationModel.limit).toHaveBeenCalledWith(100);
+            expect(result.pagination.limit).toBe(100);
+        });
+
+        it('clamps a limit above 100 down to 100 instead of running an unbounded query', async () => {
+            NotificationModel.lean.mockResolvedValue([]);
+            NotificationModel.countDocuments.mockResolvedValue(0);
+
+            const result = await service.getAllNotifications({ limit: 999999999 });
+
+            expect(NotificationModel.limit).toHaveBeenCalledWith(100);
+            expect(result.pagination.limit).toBe(100);
+        });
+
+        it('falls back to the default limit when limit is negative', async () => {
+            NotificationModel.lean.mockResolvedValue([]);
+            NotificationModel.countDocuments.mockResolvedValue(0);
+
+            const result = await service.getAllNotifications({ limit: -5 });
+
+            expect(NotificationModel.limit).toHaveBeenCalledWith(20);
+            expect(result.pagination.limit).toBe(20);
+        });
+
+        it('falls back to the default limit when limit is non-numeric', async () => {
+            NotificationModel.lean.mockResolvedValue([]);
+            NotificationModel.countDocuments.mockResolvedValue(0);
+
+            const result = await service.getAllNotifications({ limit: 'not-a-number' });
+
+            expect(NotificationModel.limit).toHaveBeenCalledWith(20);
+            expect(result.pagination.limit).toBe(20);
+        });
+
+        it('falls back to page 1 when page is negative, zero, or non-numeric', async () => {
+            NotificationModel.lean.mockResolvedValue([]);
+            NotificationModel.countDocuments.mockResolvedValue(0);
+
+            await service.getAllNotifications({ page: -3 });
+            expect(NotificationModel.skip).toHaveBeenLastCalledWith(0);
+
+            await service.getAllNotifications({ page: 0 });
+            expect(NotificationModel.skip).toHaveBeenLastCalledWith(0);
+
+            const result = await service.getAllNotifications({ page: 'abc' });
+            expect(NotificationModel.skip).toHaveBeenLastCalledWith(0);
+            expect(result.pagination.page).toBe(1);
+        });
     });
 
     // -------------------------------------------------------------------------

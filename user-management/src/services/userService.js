@@ -1,10 +1,22 @@
+const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const User = require('../models/User');
 const generateToken = require('../utils/generateToken');
 const { OAuth2Client } = require('google-auth-library');
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-const registerUser = async ({ name, email, password, role }) => {
+// ---- A07:2021 Brute-force / account-lockout config --------------------------
+const MAX_LOGIN_ATTEMPTS = 5;           // failures before account is locked
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15-minute lockout window
+
+// Pre-computed ONCE at module load — used to equalise response timing when the
+// requested email does not exist in the DB, preventing timing-based user
+// enumeration (attacker cannot distinguish 'no account' from 'wrong password').
+const DUMMY_HASH = bcrypt.hashSync('__timing_guard_dummy__', 10);
+// ----------------------------------------------------------------------------
+
+const registerUser = async ({ name, email, password }) => {
   const existingUser = await User.findOne({ email });
   if (existingUser) {
     const error = new Error('User already exists');
@@ -12,7 +24,9 @@ const registerUser = async ({ name, email, password, role }) => {
     throw error;
   }
 
-  const user = await User.create({ name, email, password, role });
+  // Public registration must always create a standard User account.
+  // Enforce role: 'User' (defense-in-depth against client-supplied role parameters).
+  const user = await User.create({ name, email, password, role: 'User' });
   const token = generateToken(user._id, user.role, user.name, user.email);
 
   return {
@@ -25,20 +39,66 @@ const registerUser = async ({ name, email, password, role }) => {
 };
 
 const loginUser = async (email, password) => {
-  const user = await User.findOne({ email }).select('+password');
+  // Fetch user; include lockout fields that are hidden from API responses
+  const user = await User.findOne({ email }).select(
+    '+password +failedLoginAttempts +lockUntil'
+  );
 
+  // ---- Non-existent email —————————————————————————————————————————————————
+  // Run a dummy bcrypt.compare (against a pre-computed hash) so that the
+  // response time is indistinguishable from a real wrong-password attempt,
+  // preventing timing-based user enumeration (A07:2021).
   if (!user) {
+    await bcrypt.compare(password, DUMMY_HASH);
     const error = new Error('Invalid email or password');
     error.statusCode = 401;
     throw error;
   }
 
+  // ---- Account lockout check ——————————————————————————————————————————————
+  const isLocked = user.lockUntil && user.lockUntil > Date.now();
+  if (isLocked) {
+    const error = new Error(
+      'Too many failed login attempts. Try again later.'
+    );
+    error.statusCode = 429;
+    throw error;
+  }
+
+  // ---- Expired-lock reset ——————————————————————————————————————————————————
+  // If lockUntil exists but is in the past the lock has expired.
+  // Reset the stale counters NOW, before processing this attempt.
+  // Without this, failedLoginAttempts would still be MAX_LOGIN_ATTEMPTS,
+  // so the first post-expiry wrong password would increment it to
+  // MAX_LOGIN_ATTEMPTS + 1 → immediately re-trigger a new 15-min lock.
+  if (user.lockUntil && user.lockUntil <= Date.now()) {
+    user.failedLoginAttempts = 0;
+    user.lockUntil = null;
+  }
+
+  // ---- Password verification ——————————————————————————————————————————————
   const isMatch = await user.matchPassword(password);
+
   if (!isMatch) {
+    // Increment the failure counter
+    user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+
+    // Lock the account once MAX_LOGIN_ATTEMPTS is reached
+    if (user.failedLoginAttempts >= MAX_LOGIN_ATTEMPTS) {
+      user.lockUntil = new Date(Date.now() + LOCKOUT_DURATION_MS);
+    }
+
+    await user.save();
+
     const error = new Error('Invalid email or password');
     error.statusCode = 401;
     throw error;
   }
+
+  // ---- Successful login — reset brute-force counters ——————————————————————
+  user.failedLoginAttempts = 0;
+  user.lockUntil = null;
+  await user.save();
 
   const token = generateToken(user._id, user.role, user.name, user.email);
 
@@ -64,7 +124,6 @@ const getUserProfile = async (userId) => {
     name: user.name,
     email: user.email,
     role: user.role,
-    googleId: user.googleId,
     createdAt: user.createdAt,
   };
 };
@@ -124,7 +183,10 @@ const deleteUser = async (userId, requestingUser) => {
 };
 
 const getAllUsers = async () => {
-  const users = await User.find({});
+  const users = await User.find(
+    {},
+    '_id name email role createdAt'
+  );
   return users;
 };
 
@@ -134,7 +196,15 @@ const googleAuth = async (idToken) => {
     audience: process.env.GOOGLE_CLIENT_ID,
   });
 
-  const { sub: googleId, email, name } = ticket.getPayload();
+  const payload = ticket.getPayload();
+  const { sub: googleId, email, name, email_verified } = payload || {};
+
+  // Reject authentication if email is missing or email_verified !== true
+  if (!email || email_verified !== true) {
+    const error = new Error('Google email is unverified or missing');
+    error.statusCode = 401;
+    throw error;
+  }
 
   // Check if user exists by googleId
   let user = await User.findOne({ googleId });
@@ -152,15 +222,125 @@ const googleAuth = async (idToken) => {
     return { _id: user._id, name: user.name, email: user.email, role: user.role, token };
   }
 
-  // Create new user
+  // Create new user — explicitly enforce role: 'User'
   user = await User.create({
     name,
     email,
     googleId,
+    role: 'User',
   });
 
   const token = generateToken(user._id, user.role, user.name, user.email);
   return { _id: user._id, name: user.name, email: user.email, role: user.role, token };
+};
+
+// ---- Phase 4: OAuth 2.0 Short-Lived Single-Use Exchange Store ----------------
+// Note: An in-memory Map is used here for single-instance architecture.
+// In a production multi-instance deployment, a shared TTL store such as Redis should be used.
+const oauthExchangeTickets = new Map();
+const OAUTH_TICKET_TTL_MS = 60 * 1000; // 60-second window
+
+const createOAuthExchangeTicket = ({ user, token }) => {
+  const code = crypto.randomBytes(32).toString('hex');
+  oauthExchangeTickets.set(code, {
+    user: {
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      createdAt: user.createdAt,
+    },
+    token,
+    expiresAt: Date.now() + OAUTH_TICKET_TTL_MS,
+  });
+  return code;
+};
+
+const consumeOAuthExchangeTicket = async (code) => {
+  if (!code || typeof code !== 'string') {
+    const error = new Error('Exchange code is required');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const ticket = oauthExchangeTickets.get(code);
+  if (!ticket) {
+    const error = new Error('Invalid or expired exchange code');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Delete immediately upon consumption (single-use guarantee)
+  oauthExchangeTickets.delete(code);
+
+  if (Date.now() > ticket.expiresAt) {
+    const error = new Error('Exchange code has expired');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return {
+    user: ticket.user,
+    token: ticket.token,
+  };
+};
+
+// ---- Cross-App Handoff Tickets -----------------------------------------------
+// Allows a logged-in user-management frontend to securely hand off their JWT
+// to another TaskMaster frontend (e.g. task-management) without placing the JWT
+// in the URL.
+//
+// Security properties:
+//   - Cryptographically random 32-byte hex code (64 chars)
+//   - 60-second TTL
+//   - Single-use: deleted immediately on first read
+//   - Never exposed in URL; only the opaque code travels via ?handoff=
+//   - Requires the requesting user to be authenticated (enforced by route middleware)
+//
+// NOTE: In-memory Map is used for single-instance/development architecture.
+// A production multi-instance deployment MUST replace this with a shared
+// TTL store such as Redis.
+const handoffTickets = new Map();
+const HANDOFF_TTL_MS = 60 * 1000; // 60 seconds
+
+const createHandoffTicket = (token) => {
+  if (!token || typeof token !== 'string') {
+    const error = new Error('Token is required to create a handoff ticket');
+    error.statusCode = 400;
+    throw error;
+  }
+  const code = crypto.randomBytes(32).toString('hex');
+  handoffTickets.set(code, {
+    token,
+    expiresAt: Date.now() + HANDOFF_TTL_MS,
+  });
+  return code;
+};
+
+const consumeHandoffTicket = (code) => {
+  if (!code || typeof code !== 'string') {
+    const error = new Error('Handoff code is required');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const ticket = handoffTickets.get(code);
+  if (!ticket) {
+    const error = new Error('Invalid or expired handoff code');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  // Burn on read — single-use guarantee
+  handoffTickets.delete(code);
+
+  if (Date.now() > ticket.expiresAt) {
+    const error = new Error('Handoff code has expired');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return { token: ticket.token };
 };
 
 module.exports = {
@@ -171,4 +351,8 @@ module.exports = {
   deleteUser,
   getAllUsers,
   googleAuth,
+  createOAuthExchangeTicket,
+  consumeOAuthExchangeTicket,
+  createHandoffTicket,
+  consumeHandoffTicket,
 };

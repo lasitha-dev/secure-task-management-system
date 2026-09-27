@@ -36,9 +36,9 @@ export default function RegisterPage() {
       
       // Check user role and redirect accordingly (new users are typically regular users)
       if (user.role === 'Admin') {
-        redirectToApp('user', '/admin', { includeToken: false });
+        await redirectToApp('user', '/admin', { includeToken: false });
       } else {
-        redirectToApp('task');
+        await redirectToApp('task');
       }
     } catch (err) {
       setError(err.response?.data?.message || err.response?.data?.errors?.[0]?.msg || 'Registration failed');
@@ -56,9 +56,9 @@ export default function RegisterPage() {
       
       // Check user role and redirect accordingly
       if (user.role === 'Admin') {
-        redirectToApp('user', '/admin', { includeToken: false });
+        await redirectToApp('user', '/admin', { includeToken: false });
       } else {
-        redirectToApp('task');
+        await redirectToApp('task');
       }
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Google Sign-Up failed');
@@ -123,6 +123,7 @@ export default function RegisterPage() {
                     onChange={(e) => setName(e.target.value)}
                     placeholder="Jane Doe"
                     required
+                    autoComplete="name"
                     className="block w-full rounded-lg border-0 py-3 pl-10 text-white shadow-sm ring-1 ring-inset ring-[#2d3748] placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-[#144bb8] bg-[#1c2230] sm:text-sm sm:leading-6"
                   />
                 </div>
@@ -142,6 +143,7 @@ export default function RegisterPage() {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="jane@company.com"
                     required
+                    autoComplete="email"
                     className="block w-full rounded-lg border-0 py-3 pl-10 text-white shadow-sm ring-1 ring-inset ring-[#2d3748] placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-[#144bb8] bg-[#1c2230] sm:text-sm sm:leading-6"
                   />
                 </div>
@@ -162,6 +164,7 @@ export default function RegisterPage() {
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
                       required
+                      autoComplete="new-password"
                       className="block w-full rounded-lg border-0 py-3 pl-10 text-white shadow-sm ring-1 ring-inset ring-[#2d3748] placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-[#144bb8] bg-[#1c2230] sm:text-sm sm:leading-6"
                     />
                   </div>
@@ -179,6 +182,7 @@ export default function RegisterPage() {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
                       required
+                      autoComplete="new-password"
                       className="block w-full rounded-lg border-0 py-3 pl-10 text-white shadow-sm ring-1 ring-inset ring-[#2d3748] placeholder:text-slate-500 focus:ring-2 focus:ring-inset focus:ring-[#144bb8] bg-[#1c2230] sm:text-sm sm:leading-6"
                     />
                   </div>

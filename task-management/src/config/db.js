@@ -1,5 +1,8 @@
 const mongoose = require('mongoose');
 
+// Prevent query injection with non-schema fields (strict query mode)
+mongoose.set('strictQuery', true);
+
 const connectDB = async () => {
     try {
         const conn = await mongoose.connect(process.env.MONGO_URI);

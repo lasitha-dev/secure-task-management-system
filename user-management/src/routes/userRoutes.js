@@ -9,6 +9,11 @@ const {
   getAllUsers,
   googleAuth,
   searchUsers,
+  initiateGoogleAuth,
+  handleGoogleCallback,
+  exchangeOAuthCode,
+  issueHandoffCode,
+  exchangeHandoffCode,
 } = require('../controllers/userController');
 const { protect, authorize } = require('../middleware/authMiddleware');
 const {
@@ -21,7 +26,16 @@ const {
 router.post('/register', validateRegister, registerUser);
 router.post('/login', validateLogin, loginUser);
 
-// Google OAuth (token-based — frontend sends Google ID token)
+// Google OAuth 2.0 Authorization Code flow
+router.get('/auth/google', initiateGoogleAuth);
+router.get('/auth/google/callback', handleGoogleCallback);
+router.post('/auth/google/exchange', exchangeOAuthCode);
+
+// Cross-app handoff — secure token transfer between TaskMaster frontends
+router.post('/auth/handoff', protect, issueHandoffCode);
+router.post('/auth/handoff/exchange', exchangeHandoffCode);
+
+// Google OAuth (token-based — frontend sends Google ID token, preserved for backward compatibility)
 router.post('/google', googleAuth);
 
 // Protected routes (require valid JWT)

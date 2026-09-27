@@ -19,7 +19,13 @@ WORKDIR /workspace/notifications-management/frontend
 COPY notifications-management/frontend/package*.json ./
 COPY shared-ui /workspace/shared-ui
 
-RUN npm ci && npm install --no-save @rollup/rollup-linux-x64-musl
+RUN npm ci && \
+    ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        npm install --no-save @rollup/rollup-linux-x64-musl; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+        npm install --no-save @rollup/rollup-linux-arm64-musl; \
+    fi
 
 COPY notifications-management/frontend ./
 

@@ -2,7 +2,11 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { redirectToApp } from '@taskmaster/shared-ui/appLinks';
 import { useAuth } from '../context/AuthContext';
-import useGoogleAuth from '../hooks/useGoogleAuth';
+
+// Derive the backend OAuth initiation URL from the same Vite env var already
+// used by axiosConfig.js. The Google OAuth route lives under the same base URL.
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/users';
+const GOOGLE_OAUTH_URL = `${API_BASE_URL}/auth/google`;
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -11,15 +15,13 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const { login, googleLogin, logout } = useAuth();
+  const { login, logout } = useAuth();
   const navigate = useNavigate();
-  const { triggerGoogleLogin, isGoogleAvailable } = useGoogleAuth();
 
   // Clear localStorage if coming from logout
   useEffect(() => {
     const params = new URLSearchParams(globalThis.location.search);
     if (params.get('logout') === 'true') {
-      console.log('[Login] Logout flag detected, clearing localStorage');
       logout();
       // Clean up URL
       globalThis.history.replaceState({}, '', '/login');
@@ -31,49 +33,35 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      console.log('[Login] Attempting login for:', email);
       const user = await login(email, password);
-      console.log('[Login] Login successful:', user);
-      
-      // Check user role and redirect accordingly
+
+      // Redirect based on role
       if (user.role === 'Admin') {
-        console.log('[Login] Admin user detected, redirecting to admin dashboard');
         navigate('/admin');
       } else {
-        console.log('[Login] Regular user detected, redirecting to task dashboard');
-        redirectToApp('task');
+        await redirectToApp('task');
       }
     } catch (err) {
-      console.error('[Login] Login failed:', err);
       setError(err.response?.data?.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
+  /**
+   * Phase 4B: Authorization Code flow.
+   * Navigate the browser to the backend OAuth initiation endpoint.
+   * The backend returns a 302 redirect to Google — this MUST be a real
+   * browser navigation (not an Axios call) so the redirect chain works correctly.
+   */
+  const handleGoogleLogin = () => {
     setError('');
     setGoogleLoading(true);
-    try {
-      console.log('[Login] Attempting Google login');
-      const idToken = await triggerGoogleLogin();
-      const user = await googleLogin(idToken);
-      console.log('[Login] Google login successful:', user);
-      
-      // Check user role and redirect accordingly
-      if (user.role === 'Admin') {
-        console.log('[Login] Admin user detected, redirecting to admin dashboard');
-        navigate('/admin');
-      } else {
-        console.log('[Login] Regular user detected, redirecting to task dashboard');
-        redirectToApp('task');
-      }
-    } catch (err) {
-      console.error('[Login] Google login failed:', err);
-      setError(err.response?.data?.message || err.message || 'Google Sign-In failed');
-    } finally {
-      setGoogleLoading(false);
-    }
+    // window.location.assign triggers a full browser navigation, following the
+    // 302 redirect to Google's consent screen automatically.
+    window.location.assign(GOOGLE_OAUTH_URL);
+    // Note: setGoogleLoading(false) is intentionally omitted — the page will
+    // navigate away, so the component will be unmounted naturally.
   };
 
   return (
@@ -184,8 +172,9 @@ export default function LoginPage() {
 
             <button
               type="button"
+              id="google-signin-btn"
               onClick={handleGoogleLogin}
-              disabled={googleLoading || !isGoogleAvailable}
+              disabled={googleLoading}
               className="w-full flex items-center justify-center gap-3 bg-[#111621] hover:bg-slate-800 text-white border border-slate-600 rounded-lg h-11 px-4 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24">
@@ -194,13 +183,13 @@ export default function LoginPage() {
                 <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"></path>
                 <path d="M12 4.66c1.61 0 3.1.56 4.28 1.68l3.29-3.29c-2-1.87-4.66-2.95-7.57-2.95-4.3 0-8.01 2.47-9.81 6.13l3.66 2.84c.87-2.6 3.3-4.53 6.15-4.53z" fill="#EA4335"></path>
               </svg>
-              <span>{googleLoading ? 'Signing in...' : 'Log in with Google'}</span>
+              <span>{googleLoading ? 'Redirecting to Google...' : 'Log in with Google'}</span>
             </button>
           </div>
 
           <div className="text-center">
             <p className="text-slate-400 text-sm">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link to="/register" className="text-[#144bb8] hover:text-[#113d96] font-semibold transition-colors">Create an account</Link>
             </p>
             <div className="mt-8 flex justify-center gap-6 text-xs text-slate-400">

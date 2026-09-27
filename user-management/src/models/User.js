@@ -31,10 +31,47 @@ const userSchema = new mongoose.Schema({
     type: String,
     unique: true,
     sparse: true,
+    select: false,
   },
   createdAt: {
     type: Date,
     default: Date.now,
+  },
+  // ---- A07:2021 Brute-force / account-lockout fields -------------------------
+  // Hidden from API responses by default (select: false).
+  failedLoginAttempts: {
+    type: Number,
+    default: 0,
+    select: false,
+  },
+  lockUntil: {
+    type: Date,
+    default: null,
+    select: false,
+  },
+  // ---------------------------------------------------------------------------
+});
+
+// A02:2021 Sensitive Data Exposure — sanitize serialized output
+userSchema.set('toJSON', {
+  transform: (doc, ret) => {
+    delete ret.password;
+    delete ret.googleId;
+    delete ret.failedLoginAttempts;
+    delete ret.lockUntil;
+    delete ret.__v;
+    return ret;
+  },
+});
+
+userSchema.set('toObject', {
+  transform: (doc, ret) => {
+    delete ret.password;
+    delete ret.googleId;
+    delete ret.failedLoginAttempts;
+    delete ret.lockUntil;
+    delete ret.__v;
+    return ret;
   },
 });
 

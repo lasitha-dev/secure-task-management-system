@@ -72,6 +72,31 @@ describe('userService', () => {
 
       expect(result.role).toBe('User');
     });
+
+    it('should ignore any supplied role and enforce role User', async () => {
+      User.findOne.mockResolvedValue(null);
+      User.create.mockResolvedValue({
+        _id: 'user-id-123',
+        name: 'Attacker Admin',
+        email: 'attacker@example.com',
+        role: 'User',
+      });
+
+      const result = await userService.registerUser({
+        name: 'Attacker Admin',
+        email: 'attacker@example.com',
+        password: 'password123',
+        role: 'Admin',
+      });
+
+      expect(User.create).toHaveBeenCalledWith({
+        name: 'Attacker Admin',
+        email: 'attacker@example.com',
+        password: 'password123',
+        role: 'User',
+      });
+      expect(result.role).toBe('User');
+    });
   });
 
   describe('loginUser', () => {
@@ -81,7 +106,10 @@ describe('userService', () => {
         name: 'John Doe',
         email: 'john@example.com',
         role: 'User',
+        failedLoginAttempts: 0,
+        lockUntil: null,
         matchPassword: jest.fn().mockResolvedValue(true),
+        save: jest.fn().mockResolvedValue(true), // needed: loginUser resets counters on success
       };
 
       User.findOne.mockReturnValue({
@@ -112,7 +140,10 @@ describe('userService', () => {
       const mockUser = {
         _id: 'user-id-123',
         email: 'john@example.com',
+        failedLoginAttempts: 0,
+        lockUntil: null,
         matchPassword: jest.fn().mockResolvedValue(false),
+        save: jest.fn().mockResolvedValue(true), // needed: loginUser persists counter on failure
       };
 
       User.findOne.mockReturnValue({
@@ -291,7 +322,10 @@ describe('userService', () => {
 
       const result = await userService.getAllUsers();
 
-      expect(User.find).toHaveBeenCalledWith({});
+      expect(User.find).toHaveBeenCalledWith(
+        {},
+        '_id name email role createdAt'
+      );
       expect(result).toHaveLength(2);
     });
   });
@@ -313,6 +347,7 @@ describe('userService', () => {
           sub: 'google-123',
           email: 'google@example.com',
           name: 'Google User',
+          email_verified: true,
         }),
       });
 
@@ -342,6 +377,7 @@ describe('userService', () => {
           sub: 'google-456',
           email: 'existing@example.com',
           name: 'Existing User',
+          email_verified: true,
         }),
       });
 
@@ -363,6 +399,7 @@ describe('userService', () => {
           sub: 'google-789',
           email: 'newgoogle@example.com',
           name: 'New Google User',
+          email_verified: true,
         }),
       });
 
@@ -374,6 +411,7 @@ describe('userService', () => {
         _id: 'new-user-id',
         name: 'New Google User',
         email: 'newgoogle@example.com',
+        googleId: 'google-789',
         role: 'User',
       });
 
@@ -383,9 +421,114 @@ describe('userService', () => {
         name: 'New Google User',
         email: 'newgoogle@example.com',
         googleId: 'google-789',
+        role: 'User',
       });
       expect(result).toHaveProperty('token', 'mock-jwt-token');
       expect(result.name).toBe('New Google User');
+      expect(result.role).toBe('User');
+    });
+
+    it('should reject authentication if Google email is unverified (email_verified: false)', async () => {
+      const { OAuth2Client } = require('google-auth-library');
+      jest.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockResolvedValue({
+        getPayload: () => ({
+          sub: 'google-unverified',
+          email: 'unverified@example.com',
+          name: 'Unverified User',
+          email_verified: false,
+        }),
+      });
+
+      await expect(
+        userService.googleAuth('id-token-unverified')
+      ).rejects.toMatchObject({
+        message: 'Google email is unverified or missing',
+        statusCode: 401,
+      });
+
+      expect(User.create).not.toHaveBeenCalled();
+    });
+
+    it('should reject authentication and NOT link account if existing user email is unverified', async () => {
+      const mockUser = {
+        _id: 'user-id-target',
+        name: 'Target User',
+        email: 'target@example.com',
+        role: 'User',
+        save: jest.fn(),
+      };
+
+      const { OAuth2Client } = require('google-auth-library');
+      jest.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockResolvedValue({
+        getPayload: () => ({
+          sub: 'attacker-sub',
+          email: 'target@example.com',
+          name: 'Attacker Impersonator',
+          email_verified: false,
+        }),
+      });
+
+      await expect(
+        userService.googleAuth('id-token-unverified-linking')
+      ).rejects.toMatchObject({
+        message: 'Google email is unverified or missing',
+        statusCode: 401,
+      });
+
+      expect(mockUser.save).not.toHaveBeenCalled();
+      expect(User.create).not.toHaveBeenCalled();
+    });
+
+    it('should reject authentication if Google email is missing from payload', async () => {
+      const { OAuth2Client } = require('google-auth-library');
+      jest.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockResolvedValue({
+        getPayload: () => ({
+          sub: 'google-no-email',
+          name: 'No Email User',
+          email_verified: true,
+        }),
+      });
+
+      await expect(
+        userService.googleAuth('id-token-no-email')
+      ).rejects.toMatchObject({
+        message: 'Google email is unverified or missing',
+        statusCode: 401,
+      });
+    });
+
+    it('should create new verified Google user with explicit role "User"', async () => {
+      const { OAuth2Client } = require('google-auth-library');
+      jest.spyOn(OAuth2Client.prototype, 'verifyIdToken').mockResolvedValue({
+        getPayload: () => ({
+          sub: 'google-role-check',
+          email: 'rolecheck@example.com',
+          name: 'Role Check User',
+          email_verified: true,
+        }),
+      });
+
+      User.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(null);
+
+      User.create.mockResolvedValue({
+        _id: 'user-role-id',
+        name: 'Role Check User',
+        email: 'rolecheck@example.com',
+        googleId: 'google-role-check',
+        role: 'User',
+      });
+
+      const result = await userService.googleAuth('valid-token-role');
+
+      expect(User.create).toHaveBeenCalledWith({
+        name: 'Role Check User',
+        email: 'rolecheck@example.com',
+        googleId: 'google-role-check',
+        role: 'User',
+      });
+      expect(result.role).toBe('User');
     });
   });
 });

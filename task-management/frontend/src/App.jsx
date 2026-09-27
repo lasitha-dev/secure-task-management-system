@@ -1,6 +1,6 @@
 /* eslint-disable react/prop-types */
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom'
 import { buildAppUrl } from '@taskmaster/shared-ui/appLinks'
 import { AppEmptyState, AppPageHeader, AppSectionCard, AppStatCard } from '@taskmaster/shared-ui/components'
@@ -1114,21 +1114,7 @@ function KanbanPage({ onNotificationChange }) {
 
 // ─── Root App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  const [isReady, setIsReady] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
-
-  // Check for token in URL hash FIRST (from cross-port redirect)
-  useEffect(() => {
-    const hash = globalThis.location.hash;
-    if (hash?.startsWith('#token=')) {
-      const token = hash.substring(7); // Remove '#token='
-      localStorage.setItem('token', token);
-      // Clean up URL — preserve the original pathname so React Router matches correctly
-      globalThis.history.replaceState(null, '', globalThis.location.pathname + globalThis.location.search);
-    }
-    // Mark as ready after token processing
-    setIsReady(true)
-  }, []);
 
   // Get current user from JWT token
   const currentUser = getCurrentUser()
@@ -1143,23 +1129,15 @@ export default function App() {
     }
   }
 
-  // Poll for unread count every 60 seconds once the app is ready and the user is authenticated
+  // Poll for unread count every 60 seconds once the user is authenticated
   useEffect(() => {
-    if (!isReady || !currentUser) return
+    if (!currentUser) return
     refreshUnreadCount()
     const timer = setInterval(refreshUnreadCount, 60_000)
     return () => clearInterval(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isReady, currentUser?.id])
+  }, [currentUser?.id])
 
-  // Wait for token processing before checking auth
-  if (!isReady) {
-    return (
-      <div className="dark min-h-screen bg-background-dark flex items-center justify-center">
-        <span className="material-symbols-outlined text-4xl text-blue-500 animate-spin">progress_activity</span>
-      </div>
-    )
-  }
 
   // Redirect to login if no user (after token processing)
   if (!currentUser) {

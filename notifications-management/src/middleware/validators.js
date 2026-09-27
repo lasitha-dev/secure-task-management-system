@@ -1,5 +1,5 @@
 const { body, query, param } = require('express-validator');
-const { NOTIFICATION_TYPE_VALUES, NOTIFICATION_PRIORITY_VALUES, RESPONSE_MESSAGES } = require('../utils/constants');
+const { NOTIFICATION_TYPE_VALUES, NOTIFICATION_PRIORITY_VALUES, PAGINATION, RESPONSE_MESSAGES } = require('../utils/constants');
 
 /**
  * Validation result handler middleware.
@@ -40,6 +40,21 @@ const validateCreateNotification = [
 ];
 
 /**
+ * Validate GET /api/notifications query pagination params.
+ * Rejects out-of-range values at the edge (A04 resource-exhaustion hardening);
+ * the service layer also clamps defensively in case this is bypassed.
+ */
+const validateGetNotifications = [
+    query('page')
+        .optional()
+        .isInt({ min: 1 }).withMessage('Page must be a positive integer'),
+    query('limit')
+        .optional()
+        .isInt({ min: 1, max: PAGINATION.MAX_LIMIT }).withMessage(`Limit must be an integer between 1 and ${PAGINATION.MAX_LIMIT}`),
+    handleValidationErrors,
+];
+
+/**
  * Validate PUT /api/notifications/preferences/:userId body.
  */
 const validateUpdatePreferences = [
@@ -74,6 +89,7 @@ const validateMarkAllRead = [
 
 module.exports = {
     validateCreateNotification,
+    validateGetNotifications,
     validateUpdatePreferences,
     validateObjectId,
     validateMarkAllRead,

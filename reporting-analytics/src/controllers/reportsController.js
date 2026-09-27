@@ -15,12 +15,13 @@ const generateReport = async (req, res, next) => {
 };
 
 /**
- * Get all reports
+ * Get all reports (paginated via ?page=&limit=)
  */
 const getAllReports = async (req, res, next) => {
     try {
-        const reports = await reportsService.getAllReports();
-        res.status(200).json({ success: true, data: reports });
+        const { page, limit } = req.query;
+        const { reports, pagination } = await reportsService.getAllReports(page, limit);
+        res.status(200).json({ success: true, data: reports, pagination });
     } catch (error) {
         next(error);
     }
@@ -53,13 +54,14 @@ const deleteReport = async (req, res, next) => {
 };
 
 /**
- * Get user's personal reports
+ * Get user's personal reports (paginated via ?page=&limit=)
  */
 const getMyReports = async (req, res, next) => {
     try {
         const userId = req.user.userId;
-        const reports = await reportsService.getUserReports(userId);
-        res.status(200).json({ success: true, data: reports });
+        const { page, limit } = req.query;
+        const { reports, pagination } = await reportsService.getUserReports(userId, page, limit);
+        res.status(200).json({ success: true, data: reports, pagination });
     } catch (error) {
         next(error);
     }

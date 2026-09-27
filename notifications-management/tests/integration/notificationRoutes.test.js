@@ -75,6 +75,7 @@ function createTestApp() {
     } = require('../../src/middleware/auth');
     const {
         validateCreateNotification,
+        validateGetNotifications,
         validateObjectId,
         validateMarkAllRead,
         validateUpdatePreferences,
@@ -86,7 +87,7 @@ function createTestApp() {
     const router = express.Router();
     router.post('/internal', protectInternalService, validateCreateNotification, controller.createNotification);
     router.use(protect);
-    router.get('/', controller.getNotifications);
+    router.get('/', validateGetNotifications, controller.getNotifications);
     router.get('/unread-count', controller.getUnreadCount);
     router.patch('/read-all', validateMarkAllRead, controller.markAllAsRead);
     router.get('/preferences/:userId', controller.getPreferences);
@@ -143,6 +144,79 @@ describe('Notification Routes — Integration Tests', () => {
                 .set('Authorization', authHeader);
 
             expect(res.status).toBe(403);
+        });
+
+        // ---------------------------------------------------------------------
+        // A04 hardening: pagination bounds enforced at the route level
+        // ---------------------------------------------------------------------
+        it('should default to limit=20 when no limit is provided', async () => {
+            const res = await request(app)
+                .get('/api/notifications')
+                .set('Authorization', authHeader);
+
+            expect(res.status).toBe(200);
+            expect(mockModel.limit).toHaveBeenCalledWith(20);
+        });
+
+        it('should accept limit=50', async () => {
+            const res = await request(app)
+                .get('/api/notifications?limit=50')
+                .set('Authorization', authHeader);
+
+            expect(res.status).toBe(200);
+            expect(mockModel.limit).toHaveBeenCalledWith(50);
+        });
+
+        it('should accept limit=100 (the maximum allowed)', async () => {
+            const res = await request(app)
+                .get('/api/notifications?limit=100')
+                .set('Authorization', authHeader);
+
+            expect(res.status).toBe(200);
+            expect(mockModel.limit).toHaveBeenCalledWith(100);
+        });
+
+        it('should reject limit=101 rather than allow an unbounded query', async () => {
+            const res = await request(app)
+                .get('/api/notifications?limit=101')
+                .set('Authorization', authHeader);
+
+            expect(res.status).toBe(400);
+            expect(res.body.success).toBe(false);
+            expect(mockModel.limit).not.toHaveBeenCalledWith(101);
+        });
+
+        it('should reject a very large limit rather than allow an unbounded query', async () => {
+            const res = await request(app)
+                .get('/api/notifications?limit=999999999')
+                .set('Authorization', authHeader);
+
+            expect(res.status).toBe(400);
+            expect(res.body.success).toBe(false);
+        });
+
+        it('should reject a negative limit', async () => {
+            const res = await request(app)
+                .get('/api/notifications?limit=-5')
+                .set('Authorization', authHeader);
+
+            expect(res.status).toBe(400);
+        });
+
+        it('should reject a negative page', async () => {
+            const res = await request(app)
+                .get('/api/notifications?page=-1')
+                .set('Authorization', authHeader);
+
+            expect(res.status).toBe(400);
+        });
+
+        it('should reject a non-integer page', async () => {
+            const res = await request(app)
+                .get('/api/notifications?page=abc')
+                .set('Authorization', authHeader);
+
+            expect(res.status).toBe(400);
         });
     });
 

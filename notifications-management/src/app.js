@@ -9,6 +9,7 @@ const Notification = require('./models/Notification');
 require('dotenv').config();
 
 const app = express();
+app.disable('x-powered-by');
 const PORT = process.env.PORT || 5003;
 
 // Connect to Database and seed mock data
